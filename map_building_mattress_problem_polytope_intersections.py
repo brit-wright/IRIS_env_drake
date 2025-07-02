@@ -170,13 +170,15 @@ options.configuration_obstacles = obstacles
 refined_samples_list = []
 r_H_list = []
 center_list = []
+vertex_list = []
+inters_list = []
+
 for alg_num in range(num_samples):
     # run the algorithm
     r_H = Iris(obstacles, # obstacles list
             sample_pts[alg_num], # sample point, (intial condition)
             domain,    # domain of the problem
             options)   # options
-
 
     cheb_center = r_H.ChebyshevCenter()
     cheb_c = cheb_center.tolist()
@@ -185,9 +187,23 @@ for alg_num in range(num_samples):
     if [x, y] in center_list:
         continue
 
+    vertex_list.append(VPolytope(r_H).vertices())
+    # print(f'Vertices: {VPolytope(r_H).vertices()}')
     center_list.append([x, y])
     r_H_list.append(r_H)
     refined_samples_list.append(sample_pts[alg_num])
+
+
+# check for intersections between the polyhedrons
+for hedron_idx in range(len(r_H_list)):
+    for hedron in r_H_list:
+        if hedron != r_H_list[hedron_idx]:
+            # check for intersection
+            inters = hedron.Intersection(r_H_list[hedron_idx])  # not sure if this returns the points or nah
+            inters_list.append(VPolytope(inters))
+
+print(f'Inters List is: {inters_list}')
+print(f'Vertex list: {vertex_list}')
 
 
 ###############################################################################################
@@ -422,7 +438,6 @@ print(f'Best goal center: {best_goal_center}')
 # print(f'PATH IS: {path}')
 
 ###############################################################################################
-
 # PLOTTING
 plt.figure()
 
@@ -458,12 +473,12 @@ obs_rect6_pts = obs_rect6.vertices()
 obs_rect6_pts = reorder_verts_2D(obs_rect6_pts)
 plt.fill(obs_rect6_pts[0, :], obs_rect6_pts[1, :], 'r')
 
-# plot the IRIS answers 
-for answer in range(len(r_H_list)):
-    r_V = VPolytope(r_H_list[answer])
-    r_pts = r_V.vertices()
-    r_pts = reorder_verts_2D(r_pts)
-    plt.fill(r_pts[0, :], r_pts[1, :], 'g')
+# # plot the IRIS answers 
+# for answer in range(len(r_H_list)):
+#     r_V = VPolytope(r_H_list[answer])
+#     r_pts = r_V.vertices()
+#     r_pts = reorder_verts_2D(r_pts)
+#     plt.fill(r_pts[0, :], r_pts[1, :], 'g')
 
 
 # plot the Chebyshev centers
@@ -473,21 +488,50 @@ for center in center_list:
     # print(center)
 
 
-# plot the connections
-for connection in connections:
-    x_values = [connection[0][0], connection[1][0]]
-    y_values = [connection[0][1], connection[1][1]]
+# # plot the connections
+# for connection in connections:
+#     x_values = [connection[0][0], connection[1][0]]
+#     y_values = [connection[0][1], connection[1][1]]
 
-    plt.plot(x_values, y_values, 'b')
+#     plt.plot(x_values, y_values, 'b')
 
-# plot the start and goal nodes
-plt.plot(start[0], start[1], 'ko')
-plt.plot(goal[0], goal[1], 'ko')
+# # plot the start and goal nodes
+# plt.plot(start[0], start[1], 'ko')
+# plt.plot(goal[0], goal[1], 'ko')
 
 
-# plot the start and goal to center connections
-plt.plot([start[0], best_start_center[0]], [start[1], best_start_center[1]], 'm')
-plt.plot([goal[0], best_goal_center[0]], [goal[1], best_goal_center[1]], 'm')
+# # plot the start and goal to center connections
+# plt.plot([start[0], best_start_center[0]], [start[1], best_start_center[1]], 'm')
+# plt.plot([goal[0], best_goal_center[0]], [goal[1], best_goal_center[1]], 'm')
+
+
+# plot using the vertices 
+# vertex_list has shape (num_v_polytopes,  num_dims (= 2 which are x, y), num_vertices)
+
+# first we need to loop through each polytope:
+print(len(vertex_list))
+colour_list = ['orange', 'turquoise', 'indianred', 'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 'peru', 'rosybrown']
+idx = 0
+for group_verts in vertex_list:
+    group_verts = reorder_verts_2D(group_verts)
+    # print('The points')
+    # print(group_verts[0, :], group_verts[1, :])
+    plt.plot(group_verts[0, :], group_verts[1, :], 'grey')
+    plt.fill(group_verts[0, :], group_verts[1, :], colour_list[idx])
+    idx += 1
+
+for inter in inters_list:
+    # group_inters = reorder_verts_2D(inter.vertices())
+
+    inter_vertex = inter.vertices()
+    # print(f'Inter Vertex: {inter_vertex}')
+
+    if inter_vertex.size > 0:
+        group_inters = reorder_verts_2D(inter_vertex)
+        plt.fill(group_inters[0,:], group_inters[1,:], 'gold')
+
+    # plt.fill(group_inters[0, :], group_inters[1, :], 'blue')
+
 
 
 plt.axis('equal')
