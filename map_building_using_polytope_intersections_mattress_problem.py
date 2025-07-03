@@ -749,3 +749,20 @@ plt.axis('equal')
 plt.show()
 
 ###### SUMMARY OF DIJKSTRA'S/NODE STUFF
+print(f'Startnode: {startnode.coords}')
+
+for n in startnode.neighbours:
+    print(n.coords)
+
+
+print(f'Goalnode: {goalnode.coords}')
+
+for n in goalnode.neighbours:
+    print(n.coords)
+
+
+for node in nodes:
+    print(f'Node is: {node.coords}')
+
+    for n in node.neighbours:
+        print(n.coords)
