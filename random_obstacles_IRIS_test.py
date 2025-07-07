@@ -391,7 +391,7 @@ def create_coords(x1, y1, x2, y2):
 
     if x1 != x2:
 
-        for x_point in np.arange(xmin, xmax, 0.1):
+        for x_point in np.arange(xmin, xmax, 0.01):
             y_point = y_xmin + (y_xmax - y_xmin)/(xmax - xmin) * (x_point - xmin)
             coord_list.append((float(x_point), float(y_point)))
 
@@ -400,7 +400,7 @@ def create_coords(x1, y1, x2, y2):
         y_min = min(y1, y2)
         y_max = max(y1, y2)
 
-        for y_point in np.arange(y_min, y_max, 0.1):
+        for y_point in np.arange(y_min, y_max, 0.01):
             coord_list.append((x1, float(y_point)))
     # print(coord_list)
     return coord_list
