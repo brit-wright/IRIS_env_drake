@@ -101,12 +101,24 @@ domain = HPolyhedron(domain_A, domain_b)
 
 
 # V_polytope rectangles
-rect1_pts = np.array([[10, 15],
+rect1_pts = np.array([[5, 15],
+                      [10, 15],
+                      [5, 5],
+                      [10, 5]])
+
+rect2_pts = np.array([[15, 10],
+                      [20, 10],
+                      [15, 5],
+                      [20, 5]])
+
+rect2_pts = np.array([[16, 15],
                       [25, 15],
-                      [10, 5],
-                      [25, 5]])
+                      [16, 11],
+                      [25, 11]])
 
 obs_rect1 = VPolytope(rect1_pts.T)
+
+obs_rect2 = VPolytope(rect2_pts.T)
 
 ###############################################################################################
 # DISTANCE HELPER FUNCTION
@@ -123,7 +135,7 @@ def distance(point1, point2):
 # IRIS ALGORITHM
 
 # list of all the obstalces
-obstacles = [obs_rect1]
+obstacles = [obs_rect1, obs_rect2]
 
 # choose a sample intial point to do optimization from
 
@@ -131,7 +143,7 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 10
+num_samples = 100
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
@@ -171,7 +183,7 @@ for alg_num in range(num_samples):
 
     cheb_center = r_H.ChebyshevCenter()
     cheb_c = cheb_center.tolist()
-    [x, y] = [int(cheb_c[0]), int(cheb_c[1])]
+    [x, y] = [round(cheb_c[0]), round(cheb_c[1])]
     
     if [x, y] in center_list:
         continue
@@ -244,12 +256,33 @@ def check_interpolation(pair, obstacles):
 
     coord_checks = create_coords(x1, y1, x2, y2)
 
+    obstacle_vertex_list = []
+    for opp in obstacles:
+        obstacle_vertex_list.append(opp.vertices())
+
     for coord in coord_checks:
 
-        interpolation_intersects = check_obstacle_collision(coord, obstacles)
-        
-        if interpolation_intersects == True:
-            return False
+        coord = [[coord[0]], [coord[1]]]  
+
+        is_a_vertex = False
+
+
+        # check whether the current coordinate is a vertex
+        for obs_vertex in obstacle_vertex_list:
+
+            for ob_index in range(len(obs_vertex[0])):
+
+                if coord == [obs_vertex[0][ob_index], obs_vertex[1][ob_index]]:
+
+                    is_a_vertex = True
+
+        if is_a_vertex == False:
+
+            interpolation_intersects = check_obstacle_collision(coord, obstacles)
+
+            if interpolation_intersects == True:
+
+                return False
 
     return True
 
@@ -304,7 +337,7 @@ for inter_el in inters_list:
         # Calculate the Chebyshev center of that intersection
         inters_cheb_center = inters_list_hedron[refine_index].ChebyshevCenter()
         inters_cheb_c = inters_cheb_center.tolist()
-        [x_inter, y_inter] = [int(inters_cheb_c[0]), int(inters_cheb_c[1])]
+        [x_inter, y_inter] = [round(inters_cheb_c[0]), round(inters_cheb_c[1])]
 
         refined_inters_centers.append([x_inter, y_inter])
 
@@ -535,13 +568,17 @@ for node in nodes:
 
 start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
+# start = [12.474357775465961, 2.939952153423444]
+
 while check_obstacle_collision(start, obstacles) == True: # the start node intersects and obstacles
     start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
-goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+# goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
-while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2):
-    goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+# while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2):
+#     goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+
+goal = [27.086549285345033, 16.444554633099873]
 
 # define the start and goal as nodes
 startnode = Node(None, start)
@@ -551,12 +588,16 @@ goalnode = Node(None, goal)
 # DEFINE THE NEIGHBOURS OF THE START AND GOAL NODE
 
 for node in nodes:
-    if (check_interpolation([node.coords, start], obstacles) == True) and node.coords != start:
+    if (check_interpolation([[round(node.coords[0]), round(node.coords[1])], start], obstacles) == True) and node.coords != start:
         startnode.neighbours.append(node)
         node.neighbours.append(startnode)
 
 for node in nodes:
-    if (check_interpolation([node.coords, goal], obstacles) == True) and node.coords != goal:
+    # check interpolation between goal and [25, 5]
+    # ans = check_interpolation([[25, 5], goal], obstacles)
+    # print(f'{ans} with [25, 5]')
+
+    if (check_interpolation([[round(node.coords[0]), round(node.coords[1])], goal], obstacles) == True) and node.coords != goal:
         goalnode.neighbours.append(node)
         node.neighbours.append(goalnode)
 
@@ -650,7 +691,7 @@ plt.figure()
 domain_V = VPolytope(domain)
 domain_pts = domain_V.vertices()
 domain_pts = reorder_verts_2D(domain_pts)
-plt.fill(domain_pts[0, :], domain_pts[1, :], 'gray')
+plt.fill(domain_pts[0, :], domain_pts[1, :], 'white')
 
 
 # plot the obstacles (the walls)
@@ -658,16 +699,14 @@ obs_rect1_pts = obs_rect1.vertices()
 obs_rect1_pts = reorder_verts_2D(obs_rect1_pts)
 plt.fill(obs_rect1_pts[0, :], obs_rect1_pts[1, :], 'r')
 
-# plot all the nodes (includes the vertices)
-for no in nodes:
-    plt.plot(no.coords[0], no.coords[1], 'bo')
+obs_rect2_pts = obs_rect2.vertices()
+obs_rect2_pts = reorder_verts_2D(obs_rect2_pts)
+plt.fill(obs_rect2_pts[0, :], obs_rect2_pts[1, :], 'r')
 
 # for pt in mega_coords:
 #     plt.plot(pt[0], pt[1], 'bo')
 
-# plot the start and goal nodes
-plt.plot(start[0], start[1], 'mo')
-plt.plot(goal[0], goal[1], 'mo')
+
 
 
 # plot the polytopes
@@ -682,7 +721,7 @@ for group_verts in vertex_list:
     group_verts = reorder_verts_2D(group_verts)
     # print('The points')
     # print(group_verts[0, :], group_verts[1, :])
-    plt.plot(group_verts[0, :], group_verts[1, :], 'grey')
+    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[idx % len(vertex_list)], linewidth=2)
     plt.fill(group_verts[0, :], group_verts[1, :], colour_list[idx % len(vertex_list)])
     idx += 1
 
@@ -696,16 +735,16 @@ for inter in inters_list:
         plt.fill(group_inters[0,:], group_inters[1,:], 'lime')
 
 # plot all the neighbour connections
-for node in nodes:
-    ncoords = node.coords
+# for node in nodes:
+#     ncoords = node.coords
 
-    for neigh in node.neighbours:
-        neighcoords = neigh.coords
+#     for neigh in node.neighbours:
+#         neighcoords = neigh.coords
         
-        x_vals = [ncoords[0], neighcoords[0]]
-        y_vals = [ncoords[1], neighcoords[1]]
+#         x_vals = [ncoords[0], neighcoords[0]]
+#         y_vals = [ncoords[1], neighcoords[1]]
 
-        plt.plot(x_vals, y_vals, 'black')
+#         plt.plot(x_vals, y_vals, 'slategrey')
 
 print(vertex_dict.keys())
 
@@ -735,7 +774,7 @@ if path:
         x_vals = [path[idx].coords[0], path[idx+1].coords[0]]
         y_vals = [path[idx].coords[1], path[idx+1].coords[1]]
         idx += 1
-        plt.plot(x_vals, y_vals, 'white')
+        plt.plot(x_vals, y_vals, 'black')
 
     # print the path
     print('Path')
@@ -745,25 +784,36 @@ if path:
 else:
     print('Path not found')
 
+# plot all the nodes (includes the vertices)
+for no in nodes:
+    plt.plot(no.coords[0], no.coords[1], 'bo')
+
+# plot the start and goal nodes
+plt.plot(start[0], start[1], 'mo')
+plt.plot(goal[0], goal[1], 'mo')
+
 print("Time Report")
 print(f'Time for Iris: {t_IRIS}')
 print(f'Time for planner: {t_plan}')
 print(f'Total Time: {t_IRIS + t_plan}')
 
+print(f'Obstacles vertices are: {obs_rect1_pts}')
+
+
+###### SUMMARY OF DIJKSTRA'S/NODE STUFF
+print(f'Startnode: {startnode.coords}')
+
+for n in startnode.neighbours:
+    print(n.coords)
+
+
+print(f'Goalnode: {goalnode.coords}')
+
+for n in goalnode.neighbours:
+    print(n.coords)
+
 plt.axis('equal')
 plt.show()
-
-# ###### SUMMARY OF DIJKSTRA'S/NODE STUFF
-# print(f'Startnode: {startnode.coords}')
-
-# for n in startnode.neighbours:
-#     print(n.coords)
-
-
-# print(f'Goalnode: {goalnode.coords}')
-
-# for n in goalnode.neighbours:
-#     print(n.coords)
 
 
 # for node in nodes:
