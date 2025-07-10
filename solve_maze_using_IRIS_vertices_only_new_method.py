@@ -212,7 +212,7 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 100
+num_samples = 50
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
@@ -264,17 +264,18 @@ for alg_num in range(num_samples):
     
     if [x, y] in center_list:
         continue
-    all_pols.append(VPolytope(r_H))
+    
     vertex_list.append(VPolytope(r_H).vertices()) # this stores the vertices associated with each IRIS solution
     # print(f'Vertices: {VPolytope(r_H).vertices()}')
 
     # Assign all the vertices and polytope as key-value pairs
     curr_polytope = VPolytope(r_H)
     curr_vertex_list = curr_polytope.vertices()
+    all_pols.append(curr_polytope)
 
     for curr_idx in range(len(curr_vertex_list[0])):
         
-        current_vertex = (round(curr_vertex_list[0][curr_idx], 6), round(curr_vertex_list[1][curr_idx], 6))
+        current_vertex = (curr_vertex_list[0][curr_idx], curr_vertex_list[1][curr_idx])
 
         if current_vertex not in polytope_vertex_dict:
 
@@ -322,6 +323,11 @@ inters_list_hedron = []
 
 # HERE, we need to only keep the polytope-vertex pairs, where there actually is an intersection
 
+# we currently have all_pols --> how to get parents and children from that?
+print(f'Length of r_H_list is {len(r_H_list)}')
+print(f'Length of all polytopes list is {len(all_pols)}')
+
+polytope_parent_child_dict = {} # the child is the key and the parents are the values
 # check for intersections between the polyhedrons
 for hedron_idx in range(len(r_H_list)):
     hedron_counter = 0
@@ -329,20 +335,37 @@ for hedron_idx in range(len(r_H_list)):
         if hedron != r_H_list[hedron_idx]:
             # check for intersection
             inters = hedron.Intersection(r_H_list[hedron_idx])  # this returns a polyhedron
+            inters_vpol = VPolytope(inters)
 
-            inters_list.append(VPolytope(inters))
+            inters_list.append(inters_vpol)
+
+            polytope_parent_child_dict[inters_vpol] = [all_pols[r_H_list.index(hedron)], all_pols[hedron_idx]]
+            
         hedron_counter += 1
+
+# print(f'The parent child dictionary is {polytope_parent_child_dict}')
+
+print('Checking length compatibility')
+
+print(f'Length of dictionary is {len(polytope_parent_child_dict)}')
+print(f'Length of inters list: {len(inters_list)}')
+
+
+refined_polytope_parent_child_dict = {}
 
 # post-process the polytope_pairs and inters_list entries to only consider the valid intersections
 refine_index = 0
 for inter_el in inters_list:
     inter_vertex = inter_el.vertices() # stores the vertices for each 'possible' intersection. includes empties as well
     if inter_vertex.size > 0:
+        
+        # parent-child assignment in new dictionary
+        refined_polytope_parent_child_dict[inter_el] = polytope_parent_child_dict[inter_el]
 
         # assign the vertices to polytopes
         for ver_idx in range(len(inter_vertex[0])):
 
-            curr_inter_ver = (round(inter_vertex[0][ver_idx], 6), round(inter_vertex[1][ver_idx], 6))
+            curr_inter_ver = (inter_vertex[0][ver_idx], inter_vertex[1][ver_idx])
         
             # do a check for whether the vertex is already in the dictionary
             if curr_inter_ver not in polytope_vertex_dict:
@@ -359,6 +382,8 @@ time_intersect = tf_intersect - t0_intersect
 print(f'Time taken to check intersections: {time_intersect}')
 # print("Checkpoint 2")
 # print(vertex_dict)
+
+print(f'Length of the refined dictionary is {len(refined_polytope_parent_child_dict)}')
 
 ###############################################################################################
 # BUILD THE GRAPH
@@ -435,49 +460,87 @@ nodes = []
 
 # define the nodes
 
-
-# the polytope vertex dictionary has all the vertex-polytope assignments.
-# so lowkey, i could just do all the node creation using the polytope vertex dictionary
-
 for entry in polytope_vertex_dict:
 
     node = Node(polytope_vertex_dict[entry], entry)
     nodes.append(node)
 
 # from here we can define the neighbour connections by looking at what nodes have the same neighbours
+
+
+# we also need to look at what polytopes are in the parent child assignment and assign neighbour that way
+# as well 
+
 for node in nodes:
 
     for node_el in nodes:
 
-        # making sure we don't self-assign neighbours
+        # making sure we don't self-assign neighbours and making sure we don't repear a neighbour assignment
         if (node != node_el) and (node_el not in node.neighbours):
 
             for pol in node.polytopes:
+                
+                # check whether any polytope in node is contained in the node_el polytopes list
 
-                if pol in node_el.polytopes:
+                if pol in node_el.polytopes: 
 
                     # they are neighbours
                     node.neighbours.append(node_el)
                     node_el.neighbours.append(node)
                     break
 
+# also need to do a parent-child polytope neighbour assignment
+for node in nodes:
+
+    for pol in node.polytopes:
+
+        # check if the polytope is in the dictionary 
+        if pol in refined_polytope_parent_child_dict:
+
+            # then we look for all the nodes that contain the parents of the list
+            parents = refined_polytope_parent_child_dict[pol]
+
+            # get all the neighbour nodes
+            for ele in parents:
+                
+                more_neighbours = [n for n in nodes if ele in n.polytopes]
+
+                for mo in more_neighbours:
+                    if mo not in node.neighbours:
+                        mo.neighbours.append(node)
+                        node.neighbours.append(mo)
+
+
+
 tf_build = time.time()
 time_build = tf_build - t0_build
 print(f'Time taken to build the graph: {time_build}')
+
+###############################################################################################
+# DEFINING THE IN_POLYTOPE FUNCTION
+
+def in_polytope(node_coords):
+    for tope in all_pols:
+        if tope.PointInSet(node_coords):
+            return True
+    return False
+
 ###############################################################################################
 # RANDOMLY PLACE START AND GOAL NODES
+
+# NEED TO INTRODUCE CONSTRAINT THAT THE START AND GOAL AREN'T GENERATED IN FREESPACE BUT IN AN ACTUAL POLYTOPE
 t0_points = time.time()
 
 start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
 # start = [12.474357775465961, 2.939952153423444]
 
-while check_obstacle_collision(start, obstacles) == True: # the start node intersects and obstacles
+while check_obstacle_collision(start, obstacles) == True or in_polytope(start) == False: # the start node intersects and obstacles
     start = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
 goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
-while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2):
+while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2) or in_polytope(goal) == False:
     goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
 # define the start and goal as nodes
@@ -515,7 +578,7 @@ for node in nodes:
                     startnode.polytopes.append(tope)
 
 for node in nodes:
-    if (node!= goalnode) and (node!= startnode):  # I removed the node!=startnode criterion since now startnode should have polytopes assigned
+    if (node!= goalnode) and (node != startnode):  # I removed the node!=startnode criterion since now startnode should have polytopes assigned
         for tope in node.polytopes:
             if tope.PointInSet(goal):
                 goalnode.neighbours.append(node)
@@ -557,7 +620,9 @@ def run_planner(start, goal):
         # check that the deck is not empty
         if not (len(onDeck) > 0):
             print('Path not found')
-            return None
+            path = []
+            time_found = 0
+            return path, time_found
         
         # Pop the next node (state) from the deck
         node = onDeck.pop(0)
@@ -722,16 +787,13 @@ for inter in inters_list:
 for node in nodes:
     ncoords = node.coords
 
-    if (node == startnode) or (node == goalnode):
-        print('yes')
+    for neigh in node.neighbours:
+        neighcoords = neigh.coords
+        
+        x_vals = [ncoords[0], neighcoords[0]]
+        y_vals = [ncoords[1], neighcoords[1]]
 
-        for neigh in node.neighbours:
-            neighcoords = neigh.coords
-            
-            x_vals = [ncoords[0], neighcoords[0]]
-            y_vals = [ncoords[1], neighcoords[1]]
-
-            plt.plot(x_vals, y_vals, 'slategrey')
+        plt.plot(x_vals, y_vals, 'slategrey')
 
 # print(f'Startode neighbours: {startnode.neighbours}')
 
