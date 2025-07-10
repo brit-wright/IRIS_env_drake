@@ -212,7 +212,7 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 20
+num_samples = 100
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
@@ -237,6 +237,10 @@ r_H_list = []
 center_list = []
 vertex_dict = {}
 vertex_list = []
+all_pols = []
+
+polytope_vertex_dict = {}  # THIS DICTIONARY HAS THE POLYTOPE AS THE KEY AND THE VERTICES AS THE VALUES
+
 t0 = time.time()
 for alg_num in range(num_samples):
     # run the algorithm
@@ -260,14 +264,32 @@ for alg_num in range(num_samples):
     
     if [x, y] in center_list:
         continue
-
-    vertex_list.append(VPolytope(r_H).vertices()) # contains the vertices of all the solution polytopes
+    all_pols.append(VPolytope(r_H))
+    vertex_list.append(VPolytope(r_H).vertices()) # this stores the vertices associated with each IRIS solution
     # print(f'Vertices: {VPolytope(r_H).vertices()}')
+
+    # Assign all the vertices and polytope as key-value pairs
+    curr_polytope = VPolytope(r_H)
+    curr_vertex_list = curr_polytope.vertices()
+
+    for curr_idx in range(len(curr_vertex_list[0])):
+        
+        current_vertex = (round(curr_vertex_list[0][curr_idx], 6), round(curr_vertex_list[1][curr_idx], 6))
+
+        if current_vertex not in polytope_vertex_dict:
+
+            polytope_vertex_dict[(current_vertex)] = [curr_polytope]
+
+        elif current_vertex in polytope_vertex_dict:
+
+            polytope_vertex_dict[(current_vertex)].append(curr_polytope)
+    
+
     center_list.append([x, y])
     r_H_list.append(r_H)
     refined_samples_list.append(sample_pts[alg_num])
 
-    vertex_dict[(x, y)] = VPolytope(r_H).vertices() # saves the solution polytopes as a dictionary indexed by cheb center
+    vertex_dict[(x, y)] = VPolytope(r_H).vertices()
 
 
 tf = time.time()
@@ -283,62 +305,8 @@ def check_obstacle_collision(coord, obstacles):
         if v_pol.PointInSet(coord) == True:
             return True
     return False
-            
-def create_coords(x1, y1, x2, y2):
-    coord_list = []
-    # create coords using linear interpolation
-
-    # check that the lines isn't parallel and apply the linear
-    # interpolation formula
-
-    xmin = min(x1, x2)
-    xmax = max(x1, x2)
-
-    if x1 == xmin:
-        y_xmin = y1
-        y_xmax = y2
-    else:
-        y_xmin = y2
-        y_xmax = y1
-
-    if x1 != x2:
-
-        for x_point in np.arange(xmin, xmax, 0.01):
-            y_point = y_xmin + (y_xmax - y_xmin)/(xmax - xmin) * (x_point - xmin)
-            coord_list.append((float(x_point), float(y_point)))
-
-    else:
-
-        y_min = min(y1, y2)
-        y_max = max(y1, y2)
-
-        for y_point in np.arange(y_min, y_max, 0.01):
-            coord_list.append((x1, float(y_point)))
-    # print(coord_list)
-    return coord_list
-
-# For connecting intersection polytopes using chebyshev centers
-
-# returns true if the points can connect without intersection
-def check_interpolation(pair, obstacles):
-
-    x1, y1 = pair[0][0], pair[0][1]
-    x2, y2 = pair[1][0], pair[1][1]
-
-    coord_checks = create_coords(x1, y1, x2, y2)
-
-    for coord in coord_checks:
-
-        interpolation_intersects = check_obstacle_collision(coord, obstacles)
-        
-        if interpolation_intersects == True:
-            return False
-
-    return True
-
 ###############################################################################################
 # POLYTOPE INTERSECTION CHECKER
-
 
 # note that center_list, r_H_list and refined_samples list already correspond to each other 
 # indexing such that for each polytope, we already have its chebyshev center. 
@@ -352,7 +320,7 @@ inters_centers = []
 inters_list = []
 inters_list_hedron = []
 
-intersecting_vertices = []
+# HERE, we need to only keep the polytope-vertex pairs, where there actually is an intersection
 
 # check for intersections between the polyhedrons
 for hedron_idx in range(len(r_H_list)):
@@ -363,66 +331,35 @@ for hedron_idx in range(len(r_H_list)):
             inters = hedron.Intersection(r_H_list[hedron_idx])  # this returns a polyhedron
 
             inters_list.append(VPolytope(inters))
-            intersecting_vertices.append(VPolytope(inters).vertices())
-            inters_list_hedron.append(inters)
-            # the elements of the inters list are of type VPolytope. However, the actual vertices will be an empty
-            # list for some. This is handled in the plotting section. 
-            center_pairs.append([center_list[hedron_idx], center_list[hedron_counter]])
-            polytope_pairs.append([VPolytope(r_H_list[hedron_idx]), VPolytope(r_H_list[hedron_counter])])
         hedron_counter += 1
-
-
-refined_center_pairs = []
-refined_inters_list = []
-refined_polytope_pairs = []
-refined_inters_centers = []
-refined_intersecting_vertices = []
-
-# print(f'Length of intersecting vertices is {len(intersecting_vertices)}')
-# print(f'Length of inters list is: {len(inters_list)}')
-
-
-
-# FIXME: for the post-processing, I also need to use the relationship between intersecting_vertices and 
-# and refine_index to add to the vertex_dict[(x, y)] = VPolytope(r_H).vertices() dictionary
-
-# print(f'Old vertex dictionary is {len(vertex_dict)}')
 
 # post-process the polytope_pairs and inters_list entries to only consider the valid intersections
 refine_index = 0
-check_centers_list = []
-
 for inter_el in inters_list:
-    inter_vertex = inter_el.vertices()
+    inter_vertex = inter_el.vertices() # stores the vertices for each 'possible' intersection. includes empties as well
     if inter_vertex.size > 0:
 
-        # update the refinement lists
-        refined_center_pairs.append(center_pairs[refine_index])
-        refined_polytope_pairs.append(polytope_pairs[refine_index])
-        refined_inters_list.append(inters_list[refine_index])
-        refined_intersecting_vertices.append(intersecting_vertices[refine_index])
+        # assign the vertices to polytopes
+        for ver_idx in range(len(inter_vertex[0])):
 
+            curr_inter_ver = (round(inter_vertex[0][ver_idx], 6), round(inter_vertex[1][ver_idx], 6))
+        
+            # do a check for whether the vertex is already in the dictionary
+            if curr_inter_ver not in polytope_vertex_dict:
 
-        # Calculate the Chebyshev center of that intersection
-        inters_cheb_center = inters_list_hedron[refine_index].ChebyshevCenter()
-        inters_cheb_c = inters_cheb_center.tolist()
-        [x_inter, y_inter] = [round(inters_cheb_c[0], 6), round(inters_cheb_c[1], 6)]
+                # business as usual
+                polytope_vertex_dict[curr_inter_ver] = [inters_list[refine_index]]
 
-        refined_inters_centers.append([x_inter, y_inter])
-
-        check_centers_list.append((x_inter, y_inter))
-
-        # update the vertices dictionary with the overlapping vertices
-        if (x_inter, y_inter) not in vertex_dict:
-            vertex_dict[(x_inter, y_inter)] = inter_vertex
-        else:
-            vertex_dict[(x_inter, y_inter)] = np.append(vertex_dict[(x_inter, y_inter)], inter_vertex, axis=1)
+            elif curr_inter_ver in polytope_vertex_dict:
+                polytope_vertex_dict[curr_inter_ver].append(inters_list[refine_index])
 
     refine_index += 1
 tf_intersect = time.time()
 time_intersect = tf_intersect - t0_intersect
 print(f'Time taken to check intersections: {time_intersect}')
-# print(f'New vertex dictionary is {len(vertex_dict)}')
+# print("Checkpoint 2")
+# print(vertex_dict)
+
 ###############################################################################################
 # BUILD THE GRAPH
 
@@ -453,6 +390,9 @@ print(f'Time taken to check intersections: {time_intersect}')
 # need to make a mega list in order to convert all the current intersections into nodes as well
 # and to label the neighbours
 
+#####################################################################################################
+# DEFINE THE NODE CLASS
+
 class Node:
 
     def __init__(self, polytopes, coords):
@@ -481,216 +421,64 @@ class Node:
     def __lt__(self, other):
         return self.cost < other.cost
 
+###############################################################################################################
+# DEFINE NODE OBJECTS, NEIGHBOURS, AND EDGE COSTS
 
 # first define every coordinate as a node object
 
 # create the mega-list of all polytopes and all coords
 t0_build = time.time()
-mega_topes = []
-mega_coords = []
 
-for element in refined_center_pairs:
-    for coord in element:
-        mega_coords.append(coord)
-        mega_topes.append([refined_polytope_pairs[refined_center_pairs.index(element)][element.index(coord)]])
-
-
-# the mega is the sum of the centers from the refined_center_pairs (the polytopes created by Iris that 
-# are capable of connection with another polytope)
-# and refined_inters_centers (the chebyshev centers of the intersecting polytopes)
-
-mega_coords = mega_coords + refined_inters_centers
-mega_topes = mega_topes + refined_polytope_pairs
-
-
-already_processed_nodes = [] # has the coordinates of the nodes that have already been processed
+# want to re-define our understanding of the nodes class so that it only considers the vertices and the polytopes
+# we DON'T care about the centers, so we only loop through the polytopes
 nodes = []
 
-# print(f'All coords are: {mega_coords}')
-
-# print(f'Refined inters centers: {refined_inters_centers}')
-# print(f'Checking all centers: {check_centers_list}')
-# k = vertex_dict.keys()
-# print(k)
-# for knum in k:
-#     if [knum[0], knum[1]] not in refined_inters_centers:
-#         print(f'{knum} not in refined inters centers') 
-# print(f'Check in refined center pairs: {refined_center_pairs}')
-
-# print(f'Vertex keys are: {vertex_dict.keys()}')
-
-# build a node list containing only the polytope and the coordinates of the center
-
-# so mega_coords contains all the centers for the polytopes that intersect and all the centers for the
-# polytope intersections. 
-# Vertex_dict contains the vertices of all the polytope solutions and the vertices of all the polytopes
-# formed from intersections
-
-# this first if statement simply sets up the nodes in mega_coords. mega_coords contains duplicates so
-# this just combines all the polytopes. It assigns vertex_neighbours for nodes that are also keys in vertex_dict
-for element_idx in range(len(mega_coords)):
+# define the nodes
 
 
-    # this allows for the polytope list to be built for nodes that were already added to the list
-    # from being members of a key-value pair in a dictionary
-    if mega_coords[element_idx] in already_processed_nodes:
+# the polytope vertex dictionary has all the vertex-polytope assignments.
+# so lowkey, i could just do all the node creation using the polytope vertex dictionary
 
-        # first find the node in the nodes list
-        node = [n for n in nodes if mega_coords[element_idx] == n.coords][0]
+for entry in polytope_vertex_dict:
 
-        # combine the polytopes list
-        for pol in mega_topes[element_idx]:
+    node = Node(polytope_vertex_dict[entry], entry)
+    nodes.append(node)
 
-            if pol not in node.polytopes:
-                node.polytopes.append(pol)
-
-        node_poly = node.polytopes
-
-
-    elif mega_coords[element_idx] not in already_processed_nodes:
-        
-        # handles the case where the same coordinate will show up multiple times in mega_coords
-        indices_found = [index for (index, coord) in enumerate(mega_coords) if coord == mega_coords[element_idx]]
-
-        node_poly = [] # contains all the polytopes of the current node
-        
-        for ind in indices_found:
-            
-            node_poly.append(pol for pol in mega_topes[ind] if pol not in node_poly)
-
-        # node_poly = mega_topes[element_idx] 
-
-        node_coord = mega_coords[element_idx]
-
-        node = Node([pol for pol in node_poly], node_coord)
-        nodes.append(node)
-        already_processed_nodes.append(node_coord)
-
-        # want to also add the vertices as nodes. if the current node is a center of a polytope, we 
-        # also add the vertices of the polytope as nodes
-
-        # assigning neighbours also happens. we assign the vertices as the neighbours of the center,
-        # the center as the neighbours of the vertices and the vertices as each others neighbours
-
-
-    # let's cook, i guess. let's pull this block out of the elif so that all vertices and have
-    # neighbours assigned?
-
-    # print(f'Vertex centers are: {vertex_dict.keys()}')
-
-    if (mega_coords[element_idx][0], mega_coords[element_idx][1]) in vertex_dict:
-
-        vertex_node_list = []
-
-        items = vertex_dict[(mega_coords[element_idx][0], mega_coords[element_idx][1])]
-
-        # print(f'Coords are: {(mega_coords[element_idx][0], mega_coords[element_idx][1])}')
-        # print(f'Items are: {items}')
-
-        for idx in range(len(items[0])):
-
-            pair = [float(items[0][idx]), float(items[1][idx])]
-
-            if pair not in already_processed_nodes:
-
-                newnode = Node([pol for pol in node_poly], pair)
-                nodes.append(newnode)
-                already_processed_nodes.append(pair)
-
-                # also makes sense assign the neighbours here
-                node.neighbours.append(newnode)
-                newnode.neighbours.append(node)
-
-                vertex_node_list.append(newnode)
-
-            # need to include another condition where the pair has already been processed
-            # but belongs to a different polytope
-            elif pair in already_processed_nodes:
-                node_pair = [n for n in nodes if n.coords == pair][0]
-
-                # combining to get the full list of polytopes
-                for element in node_poly:
-
-                    if element not in node_pair.polytopes:
-                        node_pair.polytopes.append(element)
-
-                # create the neighbour connections 
-                node.neighbours.append(node_pair)
-                node_pair.neighbours.append(node)
-                
-                vertex_node_list.append(node_pair)
-
-        # let's go through and connect all neighbours
-        for element1 in vertex_node_list:
-            for element2 in vertex_node_list:
-                if element1 != element2:
-                    element1.neighbours.append(element2)
-
-
-        # basically, for the case of [0, 0] another node already had it as a neighbour so it got connected to
-        # all of that node's neighbours
-
-        # now, we process [0, 0] as a node on its own and as a key to a dictionary
-        # we connect the node [0, 0] to all the members of its dictionary
-        # and all the members of the dictionary to [0, 0]
-
-# build the neighbour list based on the presence of the polytope of a node in an intersection with another
-# polytope
+# from here we can define the neighbour connections by looking at what nodes have the same neighbours
 for node in nodes:
 
-    neighbour_coord_list = []
+    for node_el in nodes:
 
-    # check for the presence of the node in a pair and add the neighbour as the inter point
-    for element_idx in range(len(refined_polytope_pairs)):
+        # making sure we don't self-assign neighbours
+        if (node != node_el) and (node_el not in node.neighbours):
 
-        for part in range(0, 2):
+            for pol in node.polytopes:
 
-            if refined_center_pairs[element_idx][part] == node.coords:
+                if pol in node_el.polytopes:
 
-                nb_poly_coord = refined_inters_centers[element_idx]
+                    # they are neighbours
+                    node.neighbours.append(node_el)
+                    node_el.neighbours.append(node)
+                    break
 
-                if (nb_poly_coord not in neighbour_coord_list) and (nb_poly_coord != node.coords):
-                    nb = [n for n in nodes if n.coords == nb_poly_coord]
-                    node.neighbours.append(nb[0])
-
-                    neighbour_coord_list.append(nb_poly_coord)
-
-# build the neighbour list based on the presence of the node as an intersection
-    for inter_idx in range(len(refined_inters_list)):
-
-        if refined_inters_centers[inter_idx] == node.coords:
-            
-            nb_coord1 = refined_center_pairs[inter_idx][0]
-            nb_coord2 = refined_center_pairs[inter_idx][1]
-
-            if (nb_coord1 not in neighbour_coord_list) and (nb_coord1 != node.coords):
-
-                neighbour_coord_list.append(nb_coord1)
-
-                nb1 = [n for n in nodes if n.coords == nb_coord1]
-                node.neighbours.append(nb1[0])
-
-            if (nb_coord2 not in neighbour_coord_list) and (nb_coord2 != node.coords):
-
-                neighbour_coord_list.append(nb_coord2)
-
-                nb2 = [n for n in nodes if n.coords == nb_coord2]
-                node.neighbours.append(nb2[0])
 tf_build = time.time()
 time_build = tf_build - t0_build
 print(f'Time taken to build the graph: {time_build}')
 ###############################################################################################
 # RANDOMLY PLACE START AND GOAL NODES
 t0_points = time.time()
+
 start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
+# start = [12.474357775465961, 2.939952153423444]
+
 while check_obstacle_collision(start, obstacles) == True: # the start node intersects and obstacles
-    start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+    start = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
 goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
 while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2):
-    goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+    goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
 # define the start and goal as nodes
 startnode = Node(None, start)
@@ -698,26 +486,59 @@ goalnode = Node(None, goal)
 tf_points = time.time()
 time_points = tf_points - t0_points
 print(f'Time taken to generate start/goal points: {time_points}')
+
+nodes.append(startnode)
+nodes.append(goalnode)
 ###############################################################################################
 # DEFINE THE NEIGHBOURS OF THE START AND GOAL NODE
 t0_points_neighbours = time.time()
-for node in nodes:
-    if (check_interpolation([[round(node.coords[0], 6), round(node.coords[1], 6)], start], obstacles) == True) and node.coords != start:
-        startnode.neighbours.append(node)
-        node.neighbours.append(startnode)
+
+# New method of defining the start/goal neighbours
+# 1. Check if the start/goal node is in a polytope intersection
+# Also need to account for duplicates of neighbours
+
+start_neigh_list = []
+goal_neigh_list = []
+
+start_tope_list = []
 
 for node in nodes:
-    if (check_interpolation([[round(node.coords[0], 6), round(node.coords[1], 6)], goal], obstacles) == True) and node.coords != goal:
-        goalnode.neighbours.append(node)
-        node.neighbours.append(goalnode)
+    if (node!= startnode) and (node!= goalnode):
+        for tope in node.polytopes:
+            if tope.PointInSet(start):
+                startnode.neighbours.append(node)
+                node.neighbours.append(startnode)
+                
+                if startnode.polytopes == None:
+                    startnode.polytopes = [tope]
+                else:
+                    startnode.polytopes.append(tope)
 
-# also check for start-goal connection (though the points should not be chosed to let this happen)
-if (check_interpolation([start, goal], obstacles) == True):
-    goalnode.neighbours.append(startnode)
-    startnode.neighbours.append(goalnode)
+for node in nodes:
+    if (node!= goalnode) and (node!= startnode):  # I removed the node!=startnode criterion since now startnode should have polytopes assigned
+        for tope in node.polytopes:
+            if tope.PointInSet(goal):
+                goalnode.neighbours.append(node)
+                node.neighbours.append(goalnode)
+
+                if goalnode.polytopes == None:
+                    goalnode.polytopes = [tope]
+                else:
+                    goalnode.polytopes.append(tope)
+
+# check for direct connection between startnode and goal node
+if (startnode.polytopes!= None) and (goalnode.polytopes!= None):
+
+    for tope in startnode.polytopes:
+        if tope.PointInSet(goal):
+            goalnode.neighbours.append(startnode)
+            startnode.neighbours.append(goalnode)
+            break
+
 tf_points_neighbours = time.time()
 time_points_neighbours = tf_points_neighbours - t0_points_neighbours
 print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
+
 ###############################################################################################
 # RUN DIJKSTRA'S ON THE TREE
 
@@ -805,7 +626,6 @@ domain_pts = domain_V.vertices()
 domain_pts = reorder_verts_2D(domain_pts)
 plt.fill(domain_pts[0, :], domain_pts[1, :], 'white')
 
-
 # plot the obstacles (the walls)
 obs_rect1_pts = obs_rect1.vertices()
 obs_rect1_pts = reorder_verts_2D(obs_rect1_pts)
@@ -863,11 +683,8 @@ obs_rect14_pts = obs_rect14.vertices()
 obs_rect14_pts = reorder_verts_2D(obs_rect14_pts)
 plt.fill(obs_rect14_pts[0, :], obs_rect14_pts[1, :], 'r')
 
-
 # for pt in mega_coords:
 #     plt.plot(pt[0], pt[1], 'bo')
-
-
 
 # plot the polytopes
 colour_list = ['orange', 'turquoise', 'indianred', 'darkseagreen', 'palevioletred', 
@@ -881,41 +698,48 @@ colour_list = ['orange', 'turquoise', 'indianred', 'darkseagreen', 'palevioletre
                'orange', 'turquoise', 'indianred', 
                'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 
                'peru', 'rosybrown', 'orange', 'turquoise', 'indianred', 'darkseagreen']
-
 idx = 0
 
-# print(len(vertex_list))
 for group_verts in vertex_list:
     group_verts = reorder_verts_2D(group_verts)
     # print('The points')
     # print(group_verts[0, :], group_verts[1, :])
-    # print(abs(len(colour_list) - idx % len(vertex_list)))
-    # print(type(abs(len(colour_list) - idx % len(vertex_list))))
-
-    # plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
+    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
     plt.fill(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))])
     idx += 1
 
+# plot the polytope intersections
 for inter in inters_list:
 
     inter_vertex = inter.vertices()
-
+ 
     if inter_vertex.size > 0:
         group_inters = reorder_verts_2D(inter_vertex)
         plt.fill(group_inters[0,:], group_inters[1,:], 'lime')
-        plt.plot(group_inters[0,:], group_inters[1,:], 'slategrey', linewidth = 2)
+        # plt.plot(group_inters[0,:], group_inters[1,:], 'orange', linewidth = 2)
 
-# # plot all the neighbour connections
-# for node in nodes:
-#     ncoords = node.coords
+# plot all the neighbour connections
+for node in nodes:
+    ncoords = node.coords
 
-#     for neigh in node.neighbours:
-#         neighcoords = neigh.coords
-        
-#         x_vals = [ncoords[0], neighcoords[0]]
-#         y_vals = [ncoords[1], neighcoords[1]]
+    if (node == startnode) or (node == goalnode):
+        print('yes')
 
-#         plt.plot(x_vals, y_vals, 'slategrey')
+        for neigh in node.neighbours:
+            neighcoords = neigh.coords
+            
+            x_vals = [ncoords[0], neighcoords[0]]
+            y_vals = [ncoords[1], neighcoords[1]]
+
+            plt.plot(x_vals, y_vals, 'slategrey')
+
+# print(f'Startode neighbours: {startnode.neighbours}')
+
+# for neigh in startnode.neighbours:
+#     print(neigh.coords)
+
+# print(f'Goalnode neighbours: {goalnode.neighbours}')
+
 
 # print(vertex_dict.keys())
 
@@ -923,6 +747,7 @@ for inter in inters_list:
 
 # for n in startnode.neighbours:
 #     print(n.coords)
+
 
 # print(f'Goalnode: {goalnode.coords}')
 
@@ -954,19 +779,6 @@ if path:
 else:
     print('Path not found')
 
-for ver in intersecting_vertices:
-    plt.plot(ver[0], ver[1], 'yo')
-
-for vert_group in vertex_list:
-    for el_ind in range(len(vert_group[0])):
-        plt.plot(vert_group[0][el_ind], vert_group[1][el_ind], 'ko')
-
-
-# for key_num in vertex_dict:
-#     vvert_group = vertex_dict[key_num]
-#     for ell_ind in range(len(vvert_group[0])):
-#         plt.plot(vvert_group[0][ell_ind], vvert_group[1][ell_ind], 'ro')
-
 # plot all the nodes (includes the vertices)
 for no in nodes:
     plt.plot(no.coords[0], no.coords[1], 'bo')
@@ -985,14 +797,10 @@ print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
 print(f'Total Time: {t_IRIS + t_plan + time_intersect + time_build + time_points + time_points_neighbours}')
 
 
+# print(f'Obstacles vertices are: {obs_rect1_pts}')
 
 
-
-
-plt.axis('equal')
-plt.show()
-
-# ###### SUMMARY OF DIJKSTRA'S/NODE STUFF
+###### SUMMARY OF DIJKSTRA'S/NODE STUFF
 # print(f'Startnode: {startnode.coords}')
 
 # for n in startnode.neighbours:
@@ -1003,6 +811,9 @@ plt.show()
 
 # for n in goalnode.neighbours:
 #     print(n.coords)
+
+plt.axis('equal')
+plt.show()
 
 
 # for node in nodes:
