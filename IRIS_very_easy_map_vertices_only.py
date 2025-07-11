@@ -101,91 +101,26 @@ domain = HPolyhedron(domain_A, domain_b)
 
 
 # V_polytope rectangles
-rect1_pts = np.array([[2, 18],
-                      [2, 17],
-                      [12, 18],
-                      [12, 17]])
+rect1_pts = np.array([[5, 5],
+                      [25, 5],
+                      [5, 15],
+                      [25, 15]])
 
-rect2_pts = np.array([[3, 17],
-                      [6, 17],
-                      [3, 14],
-                      [6, 14]])
+# rect2_pts = np.array([[15, 10],
+#                       [20, 10],
+#                       [15, 5],
+#                       [20, 5]])
 
-rect3_pts = np.array([[4, 14],
-                      [5, 14],
-                      [5, 6],
-                      [4, 6]])
-
-rect4_pts = np.array([[3, 6],
-                      [6, 6],
-                      [3, 3],
-                      [6, 3]])
-
-rect5_pts = np.array([[3, 3],
-                      [3, 1],
-                      [21, 3],
-                      [21, 1]])
-
-rect6_pts = np.array([[11, 11],
-                      [11, 6],
-                      [12, 6],
-                      [12, 11]])
-
-rect7_pts = np.array([[10, 14],
-                      [10, 11],
-                      [13, 14],
-                      [13, 11]])
-
-rect8_pts = np.array([[11, 15],
-                      [11, 14],
-                      [18, 15],
-                      [18, 14]])
-
-rect9_pts = np.array([[18, 16],
-                      [18, 13],
-                      [21, 16],
-                      [21, 13]])
-
-rect10_pts = np.array([[21, 15],
-                       [21, 14],
-                       [27, 15],
-                       [27, 14]])
-
-rect11_pts = np.array([[27, 16],
-                       [27, 13],
-                       [30, 16],
-                       [30, 13]])
-
-rect12_pts = np.array([[17, 10],
-                       [17, 3],
-                       [19, 10],
-                       [19, 3]])
-
-rect13_pts = np.array([[23, 11],
-                       [25, 11],
-                       [23, 6],
-                       [25, 6]])
-
-rect14_pts = np.array([[22, 3],
-                       [22, 1],
-                       [28, 3],
-                       [28, 1]])
-
+# rect3_pts = np.array([[16, 15],
+#                       [25, 15],
+#                       [16, 11],
+#                       [25, 11]])
 
 obs_rect1 = VPolytope(rect1_pts.T)
-obs_rect2 = VPolytope(rect2_pts.T)
-obs_rect3 = VPolytope(rect3_pts.T)
-obs_rect4 = VPolytope(rect4_pts.T)
-obs_rect5 = VPolytope(rect5_pts.T)
-obs_rect6 = VPolytope(rect6_pts.T)
-obs_rect7 = VPolytope(rect7_pts.T)
-obs_rect8 = VPolytope(rect8_pts.T)
-obs_rect9 = VPolytope(rect9_pts.T)
-obs_rect10 = VPolytope(rect10_pts.T)
-obs_rect11 = VPolytope(rect11_pts.T)
-obs_rect12 = VPolytope(rect12_pts.T)
-obs_rect13 = VPolytope(rect13_pts.T)
-obs_rect14 = VPolytope(rect14_pts.T)
+
+# obs_rect2 = VPolytope(rect2_pts.T)
+
+# obs_rect3 = VPolytope(rect3_pts.T)
 
 ###############################################################################################
 # DISTANCE HELPER FUNCTION
@@ -202,9 +137,8 @@ def distance(point1, point2):
 # IRIS ALGORITHM
 
 # list of all the obstalces
-obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, 
-             obs_rect7, obs_rect8, obs_rect9, obs_rect10, obs_rect11, obs_rect12, 
-             obs_rect13, obs_rect14]
+# obstacles = [obs_rect1, obs_rect2, obs_rect3]
+obstacles = [obs_rect1]
 
 # choose a sample intial point to do optimization from
 
@@ -212,16 +146,12 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 50
+num_samples = 20
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
 
-    while (obs_rect1.PointInSet(sample_pt) or obs_rect2.PointInSet(sample_pt) or obs_rect3.PointInSet(sample_pt) 
-    or obs_rect4.PointInSet(sample_pt) or obs_rect5.PointInSet(sample_pt) or obs_rect6.PointInSet(sample_pt) 
-    or obs_rect7.PointInSet(sample_pt) or obs_rect8.PointInSet(sample_pt) or obs_rect9.PointInSet(sample_pt) 
-    or obs_rect10.PointInSet(sample_pt) or obs_rect11.PointInSet(sample_pt) or obs_rect12.PointInSet(sample_pt) 
-    or obs_rect13.PointInSet(sample_pt) or obs_rect14.PointInSet(sample_pt)):
+    while (obs_rect1.PointInSet(sample_pt)):
         sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
         
     sample_pts.append(sample_pt)
@@ -275,7 +205,7 @@ for alg_num in range(num_samples):
 
     for curr_idx in range(len(curr_vertex_list[0])):
         
-        current_vertex = (curr_vertex_list[0][curr_idx], curr_vertex_list[1][curr_idx])
+        current_vertex = (round(curr_vertex_list[0][curr_idx], 6), round(curr_vertex_list[1][curr_idx], 6))
 
         if current_vertex not in polytope_vertex_dict:
 
@@ -365,7 +295,7 @@ for inter_el in inters_list:
         # assign the vertices to polytopes
         for ver_idx in range(len(inter_vertex[0])):
 
-            curr_inter_ver = (inter_vertex[0][ver_idx], inter_vertex[1][ver_idx])
+            curr_inter_ver = (round(inter_vertex[0][ver_idx], 6), round(inter_vertex[1][ver_idx], 6))
         
             # do a check for whether the vertex is already in the dictionary
             if curr_inter_ver not in polytope_vertex_dict:
@@ -437,7 +367,6 @@ class Node:
         dist = sqrt((self.coords[0] - other.coords[0])**2 + (self.coords[1] - other.coords[1])**2)
         return dist 
         
-    
     # print the node for debugging
     def __str__(self):
         return self.coords
@@ -632,7 +561,7 @@ for node in nodes:
 # we look at all the polytopes in the goal node. We check if the goalnode is a parent
 # if yes, we connect to the child
 
-# print(f'Start neighbours: {startnode.neighbours}')
+print(f'Start neighbours: {startnode.neighbours}')
 
 
 start_coords = []
@@ -764,7 +693,7 @@ def run_planner(start, goal):
                 element.parent = start
                 element.cost = element.edge_cost(node)
                 bisect.insort(onDeck, element)
-                # print(f'Length of Deck is: {len(onDeck)}')
+                print(f'Length of Deck is: {len(onDeck)}')
 
         else: # node is neither a start nor goalnode
             for element in node.neighbours:
@@ -775,7 +704,7 @@ def run_planner(start, goal):
                     element.parent = node
                     element.cost = element.edge_cost(node) + node.cost
                     bisect.insort(onDeck, element)
-                    # print(f'Length of Deck is: {len(onDeck)}')
+                    print(f'Length of Deck is: {len(onDeck)}')
 
                 # if the element has already been seen (a parent was assigned)
                 elif (element.seen == True) and (element.done == False):
@@ -785,7 +714,7 @@ def run_planner(start, goal):
                         element.cost = new_cost
                         element.parent = node
                         bisect.insort(onDeck, element)
-                        # print(f'Length of Deck is: {len(onDeck)}')
+                        print(f'Length of Deck is: {len(onDeck)}')
                 
 
 
@@ -802,65 +731,25 @@ domain_pts = domain_V.vertices()
 domain_pts = reorder_verts_2D(domain_pts)
 plt.fill(domain_pts[0, :], domain_pts[1, :], 'white')
 
+
 # plot the obstacles (the walls)
 obs_rect1_pts = obs_rect1.vertices()
 obs_rect1_pts = reorder_verts_2D(obs_rect1_pts)
 plt.fill(obs_rect1_pts[0, :], obs_rect1_pts[1, :], 'r')
 
-obs_rect2_pts = obs_rect2.vertices()
-obs_rect2_pts = reorder_verts_2D(obs_rect2_pts)
-plt.fill(obs_rect2_pts[0, :], obs_rect2_pts[1, :], 'r')
+# obs_rect2_pts = obs_rect2.vertices()
+# obs_rect2_pts = reorder_verts_2D(obs_rect2_pts)
+# plt.fill(obs_rect2_pts[0, :], obs_rect2_pts[1, :], 'r')
 
-obs_rect3_pts = obs_rect3.vertices()
-obs_rect3_pts = reorder_verts_2D(obs_rect3_pts)
-plt.fill(obs_rect3_pts[0, :], obs_rect3_pts[1, :], 'r')
-
-obs_rect4_pts = obs_rect4.vertices()
-obs_rect4_pts = reorder_verts_2D(obs_rect4_pts)
-plt.fill(obs_rect4_pts[0, :], obs_rect4_pts[1, :], 'r')
-
-obs_rect5_pts = obs_rect5.vertices()
-obs_rect5_pts = reorder_verts_2D(obs_rect5_pts)
-plt.fill(obs_rect5_pts[0, :], obs_rect5_pts[1, :], 'r')
-
-obs_rect6_pts = obs_rect6.vertices()
-obs_rect6_pts = reorder_verts_2D(obs_rect6_pts)
-plt.fill(obs_rect6_pts[0, :], obs_rect6_pts[1, :], 'r')
-
-obs_rect7_pts = obs_rect7.vertices()
-obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
-plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
-
-obs_rect8_pts = obs_rect8.vertices()
-obs_rect8_pts = reorder_verts_2D(obs_rect8_pts)
-plt.fill(obs_rect8_pts[0, :], obs_rect8_pts[1, :], 'r')
-
-obs_rect9_pts = obs_rect9.vertices()
-obs_rect9_pts = reorder_verts_2D(obs_rect9_pts)
-plt.fill(obs_rect9_pts[0, :], obs_rect9_pts[1, :], 'r')
-
-obs_rect10_pts = obs_rect10.vertices()
-obs_rect10_pts = reorder_verts_2D(obs_rect10_pts)
-plt.fill(obs_rect10_pts[0, :], obs_rect10_pts[1, :], 'r')
-
-obs_rect11_pts = obs_rect11.vertices()
-obs_rect11_pts = reorder_verts_2D(obs_rect11_pts)
-plt.fill(obs_rect11_pts[0, :], obs_rect11_pts[1, :], 'r')
-
-obs_rect12_pts = obs_rect12.vertices()
-obs_rect12_pts = reorder_verts_2D(obs_rect12_pts)
-plt.fill(obs_rect12_pts[0, :], obs_rect12_pts[1, :], 'r')
-
-obs_rect13_pts = obs_rect13.vertices()
-obs_rect13_pts = reorder_verts_2D(obs_rect13_pts)
-plt.fill(obs_rect13_pts[0, :], obs_rect13_pts[1, :], 'r')
-
-obs_rect14_pts = obs_rect14.vertices()
-obs_rect14_pts = reorder_verts_2D(obs_rect14_pts)
-plt.fill(obs_rect14_pts[0, :], obs_rect14_pts[1, :], 'r')
+# obs_rect3_pts = obs_rect3.vertices()
+# obs_rect3_pts = reorder_verts_2D(obs_rect3_pts)
+# plt.fill(obs_rect3_pts[0, :], obs_rect3_pts[1, :], 'r')
 
 # for pt in mega_coords:
 #     plt.plot(pt[0], pt[1], 'bo')
+
+
+
 
 # plot the polytopes
 colour_list = ['orange', 'turquoise', 'indianred', 'darkseagreen', 'palevioletred', 
@@ -880,7 +769,7 @@ for group_verts in vertex_list:
     group_verts = reorder_verts_2D(group_verts)
     # print('The points')
     # print(group_verts[0, :], group_verts[1, :])
-    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
+    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[idx % len(vertex_list)], linewidth=2)
     plt.fill(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))])
     idx += 1
 
@@ -894,17 +783,17 @@ for inter in inters_list:
         plt.fill(group_inters[0,:], group_inters[1,:], 'lime')
         # plt.plot(group_inters[0,:], group_inters[1,:], 'orange', linewidth = 2)
 
-# # plot all the neighbour connections
-# for node in nodes:
-#     ncoords = node.coords
+# plot all the neighbour connections
+for node in nodes:
+    ncoords = node.coords
 
-#     for neigh in node.neighbours:
-#         neighcoords = neigh.coords
+    for neigh in node.neighbours:
+        neighcoords = neigh.coords
         
-#         x_vals = [ncoords[0], neighcoords[0]]
-#         y_vals = [ncoords[1], neighcoords[1]]
+        x_vals = [ncoords[0], neighcoords[0]]
+        y_vals = [ncoords[1], neighcoords[1]]
 
-#         plt.plot(x_vals, y_vals, 'slategrey')
+        plt.plot(x_vals, y_vals, 'slategrey')
 
 # print(f'Startode neighbours: {startnode.neighbours}')
 
@@ -916,23 +805,23 @@ for inter in inters_list:
 
 # print(vertex_dict.keys())
 
-# print(f'Startnode: {startnode.coords}')
+print(f'Startnode: {startnode.coords}')
 
-# for n in startnode.neighbours:
-#     print(n.coords)
-
-
-# print(f'Goalnode: {goalnode.coords}')
-
-# for n in goalnode.neighbours:
-#     print(n.coords)
+for n in startnode.neighbours:
+    print(n.coords)
 
 
-# for node in nodes:
-#     print(f'Node is: {node.coords}')
+print(f'Goalnode: {goalnode.coords}')
 
-#     for n in node.neighbours:
-#         print(n.coords)
+for n in goalnode.neighbours:
+    print(n.coords)
+
+
+for node in nodes:
+    print(f'Node is: {node.coords}')
+
+    for n in node.neighbours:
+        print(n.coords)
 
 
 if path:
@@ -962,35 +851,33 @@ plt.plot(goal[0], goal[1], 'mo')
 
 print("Time Report")
 print(f'Time for Iris: {t_IRIS}')
-print(f'Time for planner: {t_plan}')
+# print(f'Time for planner: {t_plan}')
 print(f'Time taken to check intersections: {time_intersect}')
 print(f'Time taken to build the graph: {time_build}')
 print(f'Time taken to generate start/goal points: {time_points}')
 print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
-print(f'Total Time: {t_IRIS + t_plan + time_intersect + time_build + time_points + time_points_neighbours}')
+# print(f'Total Time: {t_IRIS + t_plan + time_intersect + time_build + time_points + time_points_neighbours}')
+print(f'Total Time: {t_IRIS + time_intersect + time_build + time_points + time_points_neighbours}')
 
-
-# print(f'Obstacles vertices are: {obs_rect1_pts}')
-
-
-###### SUMMARY OF DIJKSTRA'S/NODE STUFF
-# print(f'Startnode: {startnode.coords}')
-
-# for n in startnode.neighbours:
-#     print(n.coords)
-
-
-# print(f'Goalnode: {goalnode.coords}')
-
-# for n in goalnode.neighbours:
-#     print(n.coords)
 
 plt.axis('equal')
 plt.show()
 
+##########################################333
+# THINGS TO NOTE:
+# One thing I noted is that in the case where we have a polytope and a polytope intersection
+# There were no assignments made such that all the child vertices connect with all the vertices in the
+# parents. 
 
-# for node in nodes:
-#     print(f'Node is: {node.coords}')
 
-#     for n in node.neighbours:
-#         print(n.coords)
+
+# Let's recall how things are added to the dictionary
+# First we add all the parent (and possible non-parent) polytopes to the dictionary
+# Next we add the vertices of the childrena nd their polytopes to the dictionary
+
+# The only type of overlap that is considered is if the same vertex is shared by two polytopes
+
+# In the neighbour assignment we only think of assigning the same polytopes as neighbours
+
+# Next we need to consider applying the parent-child definitions to the polytopes so that all the 
+# parent vertices are assigned to child vertices and vice versa
