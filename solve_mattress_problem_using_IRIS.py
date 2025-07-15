@@ -14,18 +14,17 @@ from math import sqrt, inf
 
 import shapely
 
-import bisect
-
 import random
-
-import time
 
 from pydrake.all import *
 
+import bisect
+
+import time
 ###############################################################################################
 # Create a seed
 # seed = int(random.random()*10000)
-# seed = 554
+# seed = 2040
 # random.seed(seed)
 # print(f"{seed=}")
 ###############################################################################################
@@ -101,91 +100,48 @@ domain = HPolyhedron(domain_A, domain_b)
 
 
 # V_polytope rectangles
-rect1_pts = np.array([[2, 18],
-                      [2, 17],
-                      [12, 18],
-                      [12, 17]])
+rect_pts1 = np.array([[0, 10],
+                     [15, 10],
+                     [15, 9.9],
+                     [0, 9.9]])
 
-rect2_pts = np.array([[3, 17],
-                      [6, 17],
-                      [3, 14],
-                      [6, 14]])
+rect_pts2 = np.array([[18, 10],
+                     [30, 10],
+                     [30, 9.9],
+                     [18, 9.9]])
 
-rect3_pts = np.array([[4, 14],
-                      [5, 14],
-                      [5, 6],
-                      [4, 6]])
+rect_pts3 = np.array([[15, 20],
+                      [15, 12],
+                      [14.9, 12],
+                      [14.9, 20]])
 
-rect4_pts = np.array([[3, 6],
-                      [6, 6],
-                      [3, 3],
-                      [6, 3]])
+rect_pts4 = np.array([[12, 12],
+                      [15, 12],
+                      [15, 11.9],
+                      [12, 11.9]])
 
-rect5_pts = np.array([[3, 3],
-                      [3, 1],
-                      [21, 3],
-                      [21, 1]])
+rect_pts5 = np.array([[15, 10],
+                      [15, 5],
+                      [14.9, 5],
+                      [14.9, 10]])
 
-rect6_pts = np.array([[11, 11],
-                      [11, 6],
-                      [12, 6],
-                      [12, 11]])
+rect_pts6 = np.array([[15, 0], 
+                    [12, 4.9],
+                    [12, 5],
+                    [14.9, 0]])
 
-rect7_pts = np.array([[10, 14],
-                      [10, 11],
-                      [13, 14],
-                      [13, 11]])
+rect_pts7 = np.array([[18, 12],
+                      [21, 12],
+                      [21, 11.9],
+                      [18, 11.9]])
 
-rect8_pts = np.array([[11, 15],
-                      [11, 14],
-                      [18, 15],
-                      [18, 14]])
-
-rect9_pts = np.array([[18, 16],
-                      [18, 13],
-                      [21, 16],
-                      [21, 13]])
-
-rect10_pts = np.array([[21, 15],
-                       [21, 14],
-                       [27, 15],
-                       [27, 14]])
-
-rect11_pts = np.array([[27, 16],
-                       [27, 13],
-                       [30, 16],
-                       [30, 13]])
-
-rect12_pts = np.array([[17, 10],
-                       [17, 3],
-                       [19, 10],
-                       [19, 3]])
-
-rect13_pts = np.array([[23, 11],
-                       [25, 11],
-                       [23, 6],
-                       [25, 6]])
-
-rect14_pts = np.array([[22, 3],
-                       [22, 1],
-                       [28, 3],
-                       [28, 1]])
-
-
-obs_rect1 = VPolytope(rect1_pts.T)
-obs_rect2 = VPolytope(rect2_pts.T)
-obs_rect3 = VPolytope(rect3_pts.T)
-obs_rect4 = VPolytope(rect4_pts.T)
-obs_rect5 = VPolytope(rect5_pts.T)
-obs_rect6 = VPolytope(rect6_pts.T)
-obs_rect7 = VPolytope(rect7_pts.T)
-obs_rect8 = VPolytope(rect8_pts.T)
-obs_rect9 = VPolytope(rect9_pts.T)
-obs_rect10 = VPolytope(rect10_pts.T)
-obs_rect11 = VPolytope(rect11_pts.T)
-obs_rect12 = VPolytope(rect12_pts.T)
-obs_rect13 = VPolytope(rect13_pts.T)
-obs_rect14 = VPolytope(rect14_pts.T)
+obs_rect1 = VPolytope(rect_pts1.T)
+obs_rect2 = VPolytope(rect_pts2.T)
+obs_rect3 = VPolytope(rect_pts3.T)
+obs_rect4 = VPolytope(rect_pts4.T)
+obs_rect5 = VPolytope(rect_pts5.T)
+obs_rect6 = VPolytope(rect_pts6.T)
+obs_rect7 = VPolytope(rect_pts7.T)
 
 ###############################################################################################
 # DISTANCE HELPER FUNCTION
@@ -202,9 +158,7 @@ def distance(point1, point2):
 # IRIS ALGORITHM
 
 # list of all the obstalces
-obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, 
-             obs_rect7, obs_rect8, obs_rect9, obs_rect10, obs_rect11, obs_rect12, 
-             obs_rect13, obs_rect14]
+obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, obs_rect7]
 
 # choose a sample intial point to do optimization from
 
@@ -212,16 +166,14 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 40
+num_samples = 70
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
 
     while (obs_rect1.PointInSet(sample_pt) or obs_rect2.PointInSet(sample_pt) or obs_rect3.PointInSet(sample_pt) 
     or obs_rect4.PointInSet(sample_pt) or obs_rect5.PointInSet(sample_pt) or obs_rect6.PointInSet(sample_pt) 
-    or obs_rect7.PointInSet(sample_pt) or obs_rect8.PointInSet(sample_pt) or obs_rect9.PointInSet(sample_pt) 
-    or obs_rect10.PointInSet(sample_pt) or obs_rect11.PointInSet(sample_pt) or obs_rect12.PointInSet(sample_pt) 
-    or obs_rect13.PointInSet(sample_pt) or obs_rect14.PointInSet(sample_pt)):
+    or obs_rect7.PointInSet(sample_pt)):
         sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
         
     sample_pts.append(sample_pt)
@@ -577,8 +529,8 @@ t0_points = time.time()
 # while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2) or in_polytope(goal) == False:
 #     goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
-start = [21, 6]
-goal = [2, 16]
+start = [5, 15]
+goal = [5, 5]
 
 # define the start and goal as nodes
 startnode = Node(None, start)
@@ -794,8 +746,8 @@ def run_planner(start, goal):
 
 path, t_plan = run_planner(startnode, goalnode)
 print('Did it work?')
-
 ###############################################################################################
+
 # PLOTTING
 plt.figure()
 
@@ -834,34 +786,6 @@ obs_rect7_pts = obs_rect7.vertices()
 obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
 plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
 
-obs_rect8_pts = obs_rect8.vertices()
-obs_rect8_pts = reorder_verts_2D(obs_rect8_pts)
-plt.fill(obs_rect8_pts[0, :], obs_rect8_pts[1, :], 'r')
-
-obs_rect9_pts = obs_rect9.vertices()
-obs_rect9_pts = reorder_verts_2D(obs_rect9_pts)
-plt.fill(obs_rect9_pts[0, :], obs_rect9_pts[1, :], 'r')
-
-obs_rect10_pts = obs_rect10.vertices()
-obs_rect10_pts = reorder_verts_2D(obs_rect10_pts)
-plt.fill(obs_rect10_pts[0, :], obs_rect10_pts[1, :], 'r')
-
-obs_rect11_pts = obs_rect11.vertices()
-obs_rect11_pts = reorder_verts_2D(obs_rect11_pts)
-plt.fill(obs_rect11_pts[0, :], obs_rect11_pts[1, :], 'r')
-
-obs_rect12_pts = obs_rect12.vertices()
-obs_rect12_pts = reorder_verts_2D(obs_rect12_pts)
-plt.fill(obs_rect12_pts[0, :], obs_rect12_pts[1, :], 'r')
-
-obs_rect13_pts = obs_rect13.vertices()
-obs_rect13_pts = reorder_verts_2D(obs_rect13_pts)
-plt.fill(obs_rect13_pts[0, :], obs_rect13_pts[1, :], 'r')
-
-obs_rect14_pts = obs_rect14.vertices()
-obs_rect14_pts = reorder_verts_2D(obs_rect14_pts)
-plt.fill(obs_rect14_pts[0, :], obs_rect14_pts[1, :], 'r')
-
 # for pt in mega_coords:
 #     plt.plot(pt[0], pt[1], 'bo')
 
@@ -883,7 +807,7 @@ for group_verts in vertex_list:
     group_verts = reorder_verts_2D(group_verts)
     # print('The points')
     # print(group_verts[0, :], group_verts[1, :])
-    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
+    # plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
     plt.fill(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))])
     idx += 1
 

@@ -10,22 +10,29 @@ from pydrake.all import *#!/usr/bin/env python3.8
 import numpy as np
 import matplotlib.pyplot as plt
 
-from math import sqrt, inf
+from math import sqrt, inf, pi, sin, cos, atan2, ceil
+from scipy.spatial      import KDTree
+from shapely.geometry   import Point, LineString, Polygon, MultiPolygon, MultiLineString
+from shapely.prepared   import prep
 
-import shapely
-
-import bisect
 
 import random
-
-import time
-
 from pydrake.all import *
+import bisect
+import time
+import torch
+
+
+STEP_SIZE = 0.25
+NMAX = 10000
+SMAX = 10000
+
+device='cpu'
 
 ###############################################################################################
 # Create a seed
 # seed = int(random.random()*10000)
-# seed = 554
+# seed = 2040
 # random.seed(seed)
 # print(f"{seed=}")
 ###############################################################################################
@@ -101,91 +108,48 @@ domain = HPolyhedron(domain_A, domain_b)
 
 
 # V_polytope rectangles
-rect1_pts = np.array([[2, 18],
-                      [2, 17],
-                      [12, 18],
-                      [12, 17]])
+rect_pts1 = np.array([[0, 10],
+                     [15, 10],
+                     [15, 9.9],
+                     [0, 9.9]])
 
-rect2_pts = np.array([[3, 17],
-                      [6, 17],
-                      [3, 14],
-                      [6, 14]])
+rect_pts2 = np.array([[18, 10],
+                     [30, 10],
+                     [30, 9.9],
+                     [18, 9.9]])
 
-rect3_pts = np.array([[4, 14],
-                      [5, 14],
-                      [5, 6],
-                      [4, 6]])
+rect_pts3 = np.array([[15, 20],
+                      [15, 12],
+                      [14.9, 12],
+                      [14.9, 20]])
 
-rect4_pts = np.array([[3, 6],
-                      [6, 6],
-                      [3, 3],
-                      [6, 3]])
+rect_pts4 = np.array([[12, 12],
+                      [15, 12],
+                      [15, 11.9],
+                      [12, 11.9]])
 
-rect5_pts = np.array([[3, 3],
-                      [3, 1],
-                      [21, 3],
-                      [21, 1]])
+rect_pts5 = np.array([[15, 10],
+                      [15, 5],
+                      [14.9, 5],
+                      [14.9, 10]])
 
-rect6_pts = np.array([[11, 11],
-                      [11, 6],
-                      [12, 6],
-                      [12, 11]])
+rect_pts6 = np.array([[15, 0], 
+                    [12, 4.9],
+                    [12, 5],
+                    [14.9, 0]])
 
-rect7_pts = np.array([[10, 14],
-                      [10, 11],
-                      [13, 14],
-                      [13, 11]])
+rect_pts7 = np.array([[18, 12],
+                      [21, 12],
+                      [21, 11.9],
+                      [18, 11.9]])
 
-rect8_pts = np.array([[11, 15],
-                      [11, 14],
-                      [18, 15],
-                      [18, 14]])
-
-rect9_pts = np.array([[18, 16],
-                      [18, 13],
-                      [21, 16],
-                      [21, 13]])
-
-rect10_pts = np.array([[21, 15],
-                       [21, 14],
-                       [27, 15],
-                       [27, 14]])
-
-rect11_pts = np.array([[27, 16],
-                       [27, 13],
-                       [30, 16],
-                       [30, 13]])
-
-rect12_pts = np.array([[17, 10],
-                       [17, 3],
-                       [19, 10],
-                       [19, 3]])
-
-rect13_pts = np.array([[23, 11],
-                       [25, 11],
-                       [23, 6],
-                       [25, 6]])
-
-rect14_pts = np.array([[22, 3],
-                       [22, 1],
-                       [28, 3],
-                       [28, 1]])
-
-
-obs_rect1 = VPolytope(rect1_pts.T)
-obs_rect2 = VPolytope(rect2_pts.T)
-obs_rect3 = VPolytope(rect3_pts.T)
-obs_rect4 = VPolytope(rect4_pts.T)
-obs_rect5 = VPolytope(rect5_pts.T)
-obs_rect6 = VPolytope(rect6_pts.T)
-obs_rect7 = VPolytope(rect7_pts.T)
-obs_rect8 = VPolytope(rect8_pts.T)
-obs_rect9 = VPolytope(rect9_pts.T)
-obs_rect10 = VPolytope(rect10_pts.T)
-obs_rect11 = VPolytope(rect11_pts.T)
-obs_rect12 = VPolytope(rect12_pts.T)
-obs_rect13 = VPolytope(rect13_pts.T)
-obs_rect14 = VPolytope(rect14_pts.T)
+obs_rect1 = VPolytope(rect_pts1.T)
+obs_rect2 = VPolytope(rect_pts2.T)
+obs_rect3 = VPolytope(rect_pts3.T)
+obs_rect4 = VPolytope(rect_pts4.T)
+obs_rect5 = VPolytope(rect_pts5.T)
+obs_rect6 = VPolytope(rect_pts6.T)
+obs_rect7 = VPolytope(rect_pts7.T)
 
 ###############################################################################################
 # DISTANCE HELPER FUNCTION
@@ -202,9 +166,7 @@ def distance(point1, point2):
 # IRIS ALGORITHM
 
 # list of all the obstalces
-obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, 
-             obs_rect7, obs_rect8, obs_rect9, obs_rect10, obs_rect11, obs_rect12, 
-             obs_rect13, obs_rect14]
+obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, obs_rect7]
 
 # choose a sample intial point to do optimization from
 
@@ -212,16 +174,14 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 40
+num_samples = 50
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
 
     while (obs_rect1.PointInSet(sample_pt) or obs_rect2.PointInSet(sample_pt) or obs_rect3.PointInSet(sample_pt) 
     or obs_rect4.PointInSet(sample_pt) or obs_rect5.PointInSet(sample_pt) or obs_rect6.PointInSet(sample_pt) 
-    or obs_rect7.PointInSet(sample_pt) or obs_rect8.PointInSet(sample_pt) or obs_rect9.PointInSet(sample_pt) 
-    or obs_rect10.PointInSet(sample_pt) or obs_rect11.PointInSet(sample_pt) or obs_rect12.PointInSet(sample_pt) 
-    or obs_rect13.PointInSet(sample_pt) or obs_rect14.PointInSet(sample_pt)):
+    or obs_rect7.PointInSet(sample_pt)):
         sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
         
     sample_pts.append(sample_pt)
@@ -577,8 +537,8 @@ t0_points = time.time()
 # while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2) or in_polytope(goal) == False:
 #     goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
-start = [21, 6]
-goal = [2, 16]
+start = [5, 15]
+goal = [5, 5]
 
 # define the start and goal as nodes
 startnode = Node(None, start)
@@ -696,7 +656,7 @@ print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
 print(f'Number of nodes is: {len(nodes)}')
 
 
-# remove neighbour duplicated
+# remove neighbour duplicates
 
 for node in nodes:
     unique_neighbours = []
@@ -724,6 +684,9 @@ def run_planner(start, goal):
     onDeck = [start]
     path = []
 
+    start_failure_nodes = []
+    start_failure_coords = []
+
     print("Starting Dijkstra's")
 
     while True:
@@ -731,12 +694,16 @@ def run_planner(start, goal):
         # check that the deck is not empty
         if not (len(onDeck) > 0):
             print('Path not found')
-            path = []
-            time_found = 0
-            return path, time_found
+            # print(f'The start_failure_nodes are: {start_failure_coords}')
+            path = start_failure_nodes
+            time_found = -1
+
+            return start_failure_nodes, time_found
         
         # Pop the next node (state) from the deck
         node = onDeck.pop(0)
+        start_failure_coords.append([round(node.coords[0], 6), round(node.coords[0], 6)])
+        start_failure_nodes.append(node)
 
         node.done = True # this means the node has been processed
 
@@ -767,7 +734,6 @@ def run_planner(start, goal):
                 element.parent = start
                 element.cost = element.edge_cost(node)
                 bisect.insort(onDeck, element)
-                # print(f'Length of Deck is: {len(onDeck)}')
 
         else: # node is neither a start nor goalnode
             for element in node.neighbours:
@@ -778,7 +744,6 @@ def run_planner(start, goal):
                     element.parent = node
                     element.cost = element.edge_cost(node) + node.cost
                     bisect.insort(onDeck, element)
-                    # print(f'Length of Deck is: {len(onDeck)}')
 
                 # if the element has already been seen (a parent was assigned)
                 elif (element.seen == True) and (element.done == False):
@@ -788,14 +753,507 @@ def run_planner(start, goal):
                         element.cost = new_cost
                         element.parent = node
                         bisect.insort(onDeck, element)
-                        # print(f'Length of Deck is: {len(onDeck)}')
-                
 
+                
+def run_reverse_planner(goal):
+    t0 = time.time()
+    goal.seen = True
+    goal.cost = 0
+    goal.parent = None
+    onDeck2 = [goal]
+    path2 = []
+
+    goal_failure_nodes = []
+    goal_failure_coords = []
+
+    print("Starting Reverse Dijkstra's")
+
+    while True:
+
+        # check that the deck is not empty
+        if not (len(onDeck2) > 0):
+            print('Path not found')
+            # print(f'The goal_failure_nodes are: {goal_failure_coords}')
+            path = []
+
+            return goal_failure_nodes
+        
+        # Pop the next node (state) from the deck
+        node = onDeck2.pop(0)
+        goal_failure_coords.append([round(node.coords[0], 6), round(node.coords[0], 6)])
+        goal_failure_nodes.append(node)
+
+        node.done = True # this means the node has been processed
+        
+        if node == goal:
+
+            for element in node.neighbours:
+                element.seen = True
+                element.parent = goal
+                element.cost = element.edge_cost(node)
+                bisect.insort(onDeck2, element)
+
+        else: # node is not a goalnode
+            for element in node.neighbours:
+                
+                # check whether the element has been seen (whether a parent has been assigned)
+                if element.seen == False:
+                    element.seen = True
+                    element.parent = node
+                    element.cost = element.edge_cost(node) + node.cost
+                    bisect.insort(onDeck2, element)
+
+                # if the element has already been seen (a parent was assigned)
+                elif (element.seen == True) and (element.done == False):
+                    new_cost = element.edge_cost(node) + node.cost
+                    if new_cost < element.cost:
+                        onDeck2.remove(element)
+                        element.cost = new_cost
+                        element.parent = node
+                        bisect.insort(onDeck2, element)
 
 path, t_plan = run_planner(startnode, goalnode)
-print('Did it work?')
 
-###############################################################################################
+if t_plan == -1:
+    start_fails = path
+    # this means that the start to goal Dijkstra's planner failed
+    goal_fails = run_reverse_planner(goalnode)
+
+    best_node_pairs = []
+    best_distances = []
+
+    node_pairs = []
+
+    distance_list = []
+
+    # find the node to node pairings
+
+    # need to include another distance list
+
+    # this metric is lowkey trash. will come up with a better metric later on
+    min_dist = 6
+    max_dist = 8
+
+    for start_fail in start_fails:
+
+        for goal_fail in goal_fails:
+
+                dist = distance(start_fail.coords, goal_fail.coords)
+
+                if (dist >= min_dist) and (dist <= max_dist):
+
+                    best_distances.append(dist)
+                    best_node_pairs.append([start_fail, goal_fail])
+
+    print(f'The new distance list is: {best_distances}')
+    print(f'Best node pairs are: {best_node_pairs}')
+    print(f'Length is: {len(best_distances)}')
+
+    start_rrt = []
+    goal_rrt = []
+
+
+    # need to start creating the 'start and goal nodes' based on which nodes are first and second in the pair
+    for pair in best_node_pairs:
+
+        start_rrt.append(pair[0].coords)
+        goal_rrt.append(pair[1].coords)
+
+    print(f'Start nodes are: {start_rrt}')
+    print(f'Goal nodes are: {goal_rrt}')
+
+
+    # also want to have a version of the obstacles as polyhdrons to prep for the inFreespace call
+    # so that this doesn't have to be continuously re-calculated
+
+    A_list = []
+    b_list = []
+    for obstacle in obstacles:
+
+        as_H = HPolyhedron(obstacle)
+
+        A_el = torch.tensor(as_H.A(), dtype=torch.float, device=device) # original size is (4, 2)
+        b_el = torch.tensor(as_H.b(), dtype=torch.float, device=device) # original size is (4)
+
+        # let's gather the A and b parameters into a list
+        A_list.append(A_el)
+        b_list.append(b_el)
+
+    # and then let's put them into a matrix stack
+    A_stack = torch.stack(A_list)
+    b_stack = torch.stack(b_list)
+
+    A_stack_T = A_stack.transpose(1, 2)
+    
+
+    def inFreespace(next_node):
+        
+        # check that the next point is in-bounds
+
+        # returns False if any condition fails and True if all conditions pass
+        in_bounds_mask = ((next_node[:,0] >= x1_min) & (next_node[:,0] <= x1_max)) & ((next_node[:,1] >= x2_min) & (next_node[:,1] <= x2_max))
+
+        # The A_stack_T variable has already been pre-calculated so I can just to the batch matrix multiplication here
+        prod = torch.bmm(next_node, A_stack_T)
+
+        mask = (prod <= b_stack.unsqueeze(1))
+        mask2 = mask.all(dim=2)
+        mask3 = mask2.any(dim=0)
+
+        final_mask = in_bounds_mask & ~mask3
+
+        return final_mask
+    
+    def connectsTo():
+        pass
+
+
+    # RUN RRT IN GPU (CPU for now)
+    def do_rrt(start_r, goal_r):
+        device = torch.device('cpu')
+        starts = torch.tensor(start_r, dtype=torch.float, device=device)
+        goals = torch.tensor(goal_r, dtype=torch.float, device=device)
+
+        # looks good so far
+        print(f'Starts are: {starts}')
+        print(f'Goals are: {goals}')
+
+
+        # next need to run the actual RRT algorithm (pray 4 me)
+
+        batch_size = len(start_r)
+        node_counts = torch.ones(batch_size, dtype=torch.long, device=device)
+        tree_parents = torch.full((batch_size, NMAX), -1, dtype=torch.long, device=device)
+
+        tree_positions = torch.zeros((batch_size, NMAX, 2), device=device)
+        tree_positions[:, 0, 0] = startnode.x
+        tree_positions[:, 0, 1] = startnode.y
+
+        iter = 0
+
+        def addtotree(valid_batches, valid_nextnodes, nearest_indices):
+            # start by assigning the parent of the new_node to be the nearnode
+            tree_parents[valid_batches, node_counts[valid_batches]] = nearest_indices
+
+            # add the new node to the tree
+            tree_positions[valid_batches, node_counts[valid_batches], :] = valid_nextnodes
+
+            # increment the node cout
+            next_node_index = node_counts[valid_batches]
+            node_counts[valid_batches] += 1
+            
+        def addtogoal(goal_batches, goal_nodes):
+
+            index_of_next_node = node_counts[goal_batches] - 1
+
+            tree_parents[goal_batches, node_counts[goal_batches]] = index_of_next_node
+            
+            tree_positions[goal_batches, node_counts[goal_batches],:] = goal_nodes
+
+            node_counts[goal_batches] += 1
+
+        # GO INTO THE LOOP LOGIC #######################
+        step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
+        p = 0.3
+
+        active_batches = torch.ones(batch_size, dtype=torch.bool, device=device)
+        all_goal_batches = torch.tensor([], dtype=torch.long, device=device)
+
+        while True:
+            iter += 1
+            # Define the random.random() tensor
+            random_tensor = torch.rand(batch_size, device=device)
+
+            # Define the boolean meask which compares each value in the random tensor to the probability variable
+            mask = (random_tensor <= p) & active_batches
+
+            # We update the mask to consider which batches are active where when mask returns true it means 
+            # that we want to sample the goalnode and we can the node is active. If we wanna sample the goal 
+            # node but the active_batches for some batch is false, then the target node remains as the sample?
+            
+
+            # Define the samples tensor which does non-uniform stampling
+            samples = torch.empty((batch_size, 2), device=device)
+            samples[:, 0] = torch.rand(batch_size, device=device) * (x1_max - x1_min) + x1_min
+            samples[:, 1] = torch.rand(batch_size, device=device) * (x2_max - x2_min) + x2_min
+            
+            # Logic to check whether mask is true or not
+
+            # Select rows in the random_tenser where mask is true. For those rows, copy the row from goal
+            # and assign it to targetnode
+            targetnode = torch.clone(samples)
+            targetnode[mask] = goal[mask]
+
+            # Now that we have the targetnode for each batch, we can move on to calculating what the next node is
+
+            # we start by doing an 'unsqueeze' process on the targetnode. I don't really know how it works but this is
+            # necessary for targetnode and tree_positions to be compatible for the subtraction
+            targetnode_compat = targetnode.unsqueeze(1)
+
+            # we then calculate the differenct between the tree_positions and targetnode_compat
+            diff = targetnode_compat - tree_positions
+
+            # now we have a difference tensor with the same size as tree_positions
+
+            # next we square each element in the difference tensor
+            squared_diff = diff**2
+
+            # and then we take the square-root of the squared_diff tensor to get the distances
+            # for inactive batches, the distance is infinity
+            distances = torch.sqrt(torch.sum(squared_diff, dim=2))
+
+            # Create a mask based on nodecounts where any index in distances beyond nodecounts has its distance set to
+            # zero
+
+            # this defines the number of nodes as a column vector. Shape is (1, NMAX)
+            node_indices = torch.arange(NMAX, device=device).unsqueeze(0)
+
+            # we then define a mask to test whether node_indices its less that node_counts.unsqueeze(1). Shape is (B, NMAX)
+            # node indices is a list from 0 to NMAX-1
+            # node_counts defines how many nodes are currently in the tree
+            # valid_mask ensures that empty unseen node spaces in node_indices (the buffer up to the max number of nodes) are not included
+            # in the distance calculation. Instead the distances for those node indices are set to infinity
+            
+            masked_node_counts = node_counts.clone()
+            masked_node_counts[~active_batches] = 0 # zero out the inactive nodes
+            
+            # valid mask is used to say which values should be considered finding the smallest distance by taking 
+            # into account whether the node number has been seen (we don't calculate distance for nodes that don't
+            # yet exist). Masked node counts has 0 where the batch is inactive an integer where the batch is active
+
+            # So for an inactive node, node_indices < masked_node_counts will always be False for inactive batches 
+            # and so the distance will be set to infinity for all nodes in that batch
+
+            # It also retains its original function where in active batches, any node count past the actual number of 
+            # nodes in the tree is set to False
+            valid_mask = node_indices < masked_node_counts.unsqueeze(1)
+
+            # apply the mask to distances to check indices
+            distances[~valid_mask] = float('inf')
+
+            # after calculating the distance we can then look for the index where the distance is the smallest
+            # this is of size (batch_size, 1)
+            nearest_indices = torch.argmin(distances, dim=1) # Shape is (batch_size,)
+            
+            batch_indices = torch.arange(batch_size, device=device) # Shape is (batch_size,)
+
+            # next we find the node (in tree positions) that corresponds to that index
+            nearnode = tree_positions[batch_indices, nearest_indices, :] # this should be of shape (batch_size, 1, 2 -->(x,y))
+
+            # next we get the minimum distance
+            min_dist = distances[batch_indices, nearest_indices]
+
+            # next we calculate the new x and y coordinates of the next node
+            nextnode = nearnode + (STEP_SIZE/min_dist).unsqueeze(1) * diff[batch_indices, nearest_indices,:]
+
+            # Now that we have nextnode, we should then check the validity of next node by checking if it's in
+            # free space and if it connects
+
+            # first, check if the node is inFreespace()
+            # we first define the node to be checked based on its x and y positions
+            
+            # right now, nextnode contains the coordinates for each batch
+            # we can convert this tensor into a numpy array
+
+            
+
+            # freespace_mask_cpu is a numpy array
+            freespace_mask = inFreespace(nextnode)
+
+            # convert the numpy array to a tensor
+            
+
+            # next, we have to check if the nearnode connects to the nextnode
+            # we follow a similar procesure where we first convert the nearnode tensor into a numpy array
+            
+
+            # then we send the nearnode numpy array and the nextnode numpy array to the connectsTo function
+            connects_mask = connectsTo(nearnode, nextnode)
+
+        
+
+            # next we need to combine the masks to see, for each batch, whether the node found is valid
+            next_valid_mask = freespace_mask & connects_mask & active_batches
+
+            # get the batches where the nextnode is valid
+            valid_batches = torch.where(next_valid_mask)[0]
+
+            # get the valid nextnodes
+            valid_nextnodes = nextnode[valid_batches]
+            if valid_nextnodes.shape[0] == 0:
+                # print('No valid nodes found - stuck')
+                stuck_counter += 1
+
+            # get only the valid nearest indices
+            valid_nearest = nearest_indices[valid_batches]
+
+            # call addtotree for only the valid batches and valid nodes
+            addtotree(valid_batches, valid_nextnodes, valid_nearest)
+            
+            if(iter % 500 == 0):
+                print(f'Now at {iter} iterations')
+
+
+            if valid_nextnodes.shape[0] == 0:
+                continue
+            
+            ##### GOAL CHECKING BLOCK #######
+
+            # first make a mask to check whether the distance between the valid_nextnode and the goalnode
+            # is within step_size
+
+            # valid_nextnodes would be a subset of nextnodes which has shape valid_batches, (x,y)
+
+            # Currently, the goalnode is of size (batch_size, (x,y)). Need to define valid_goal
+            possible_goal = goal[valid_batches]
+
+            # Find the Euclidean distance between the goal and each node in nextnode
+
+            goal_diff = possible_goal - valid_nextnodes
+            goal_distances = torch.norm(goal_diff, dim=1)
+        
+            # Next we create a mesh to see whether the distance is within the step size
+            # print(f'Possible Goal: {possible_goal}')
+            # print(f'Valid Next Node: {valid_nextnodes}')
+            # print(f'Goal distances: {goal_distances}')
+            within_threshold_mask = goal_distances < STEP_SIZE
+
+            # Next we must create another mesh that tests whether the valid nextnode connects to the 
+            # goalnode
+            goal_connects_mask = connectsTo(valid_nextnodes, possible_goal)
+            # compare both masks
+            # print('Check mask types')
+            # print(dist_mask.dtype)
+            # print(f'dist_mask: {dist_mask}')
+            # print(goal_connects_mask.dtype)
+            # print(f'goal connects mask: {goal_connects_mask}')
+            valid_goal_connects_mask = within_threshold_mask & goal_connects_mask
+
+            # get the batch indices where the goal can be added to the tree
+            goal_batches = valid_batches[valid_goal_connects_mask]
+            
+            goal_nodes = goal[goal_batches]
+            
+            # goal_indices = node_counts[goal_batches] - 1
+            # goal_parents = goal_indices - 1
+            
+            # goal_tree_index = valid_nearest[goal_batches] + 2
+            # add goal nodes to the tree
+            # goal_tree_index = next_node_index[goal_batches] + 1
+
+            if goal_batches.numel()>0:
+                # print(f'Bruhhh: {goal_batches.numel()}')
+                addtogoal(goal_batches, goal_nodes)
+
+            # Set the batch to inactive
+        
+            # the last thing is to check the following criterion for whether to stop a batch
+            # 1. The goal has been found
+            
+
+            # goal_found_mask = torch.zeros(batch_size, dtype=torch.bool, device=device)
+            # goal_found_mask[goal_batches] = True
+                
+            
+                # print('Issue might come up here!')
+                active_batches[goal_batches] = False
+                # print(f'Goal found for batch: {goal_batches.tolist()} at Node: {node_counts[goal_batches]} and at Step: {step_counts[goal_batches]}')
+                # print(tree_positions[goal_batches])
+                # print(tree_parents[goal_batches])
+                all_goal_batches = torch.cat([all_goal_batches, goal_batches])
+
+            # Increment the number of steps. Recall the following step tensor definition
+            # step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
+
+            step_counts[active_batches] += 1
+
+            # Test to see if the step counts for any batch has exceeded the maximum steps
+            step_mask = step_counts >= SMAX
+
+            # Test to see if the node counts for any batch has exceeded the maximum nodes
+            node_mask = node_counts >= NMAX
+
+            # Create the overall expired mask
+            expired_mask = step_mask | node_mask
+
+            # Apply the expired mask to active batches
+            active_batches[expired_mask] = False
+
+            # And then the last thing is that I should break/end the loop if all the batches
+            # have been stopped
+            if False in active_batches:
+                # print(active_batches)
+                pass
+            if not active_batches.any():
+                if (step_counts >= SMAX).all() | (node_counts >= NMAX).all():
+                    # print(f'Process Aborted at Node Count = {node_counts} and \nStep Count = {step_counts}. No path found')
+                    return None
+                break
+
+        tf = time.time()
+        print(node_counts, step_counts)
+        print(f'Stuck counter: {stuck_counter}')
+        node_counts_cpu = node_counts.cpu().numpy()
+        tree_parents_cpu = tree_parents.cpu().numpy()
+        tree_positions_cpu = tree_positions.cpu().numpy()
+        goal_indices = node_counts_cpu - 1
+        all_goal_batches_cpu = all_goal_batches.cpu().numpy()
+        # Let's send all this stuff to a function outside of the rrt called buildPath
+        all_paths = buildPath(goal_indices, tree_parents_cpu, tree_positions_cpu, batch_size, all_goal_batches_cpu)
+        return tf, all_paths
+
+    def buildPath(goal_idx, node_parents, node_positions, batch_size, goal_batches):
+       
+        # print('Now building the path')
+        path = []
+        # loop through each batch
+        for batch_num in range(batch_size):
+            if batch_num not in goal_batches:
+                print(f'No path found for batch {batch_num}')
+                path.append(None)
+                continue
+            current_path = []
+            idx = goal_idx[batch_num]
+            # print(idx)
+            # Skip if no path was found:
+            if idx < 0 or node_parents[batch_num, idx] == -1 and idx != 0:
+                path.append(None)
+                continue
+
+            while idx != -1:
+                # the parent node hasn't been encountered
+                # add the node to the path
+                current_path.append(node_positions[batch_num, idx])
+                idx = node_parents[batch_num, idx]
+
+            current_path.reverse()
+            tup_list = [tuple(float(x) for x in point) for point in current_path]
+            node_list = [Node(x,y) for (x,y) in tup_list]
+            path.append(node_list)
+            
+            # print('Checking path validity ahhhhh')
+            
+            for ele in range(len(tup_list) - 1):
+                
+                (x1, y1) = tup_list[ele]
+                (x2, y2) = tup_list[ele+1]
+
+                dist = sqrt((x1 - x2)**2 + (y1 - y2)**2)
+                return path
+
+
+    # just do the call here :/
+    do_rrt(start_rrt, goal_rrt)
+###################################################################################################################
+
+
+
+
+
+
+
+###################################################################################################################
+
 # PLOTTING
 plt.figure()
 
@@ -834,37 +1292,6 @@ obs_rect7_pts = obs_rect7.vertices()
 obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
 plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
 
-obs_rect8_pts = obs_rect8.vertices()
-obs_rect8_pts = reorder_verts_2D(obs_rect8_pts)
-plt.fill(obs_rect8_pts[0, :], obs_rect8_pts[1, :], 'r')
-
-obs_rect9_pts = obs_rect9.vertices()
-obs_rect9_pts = reorder_verts_2D(obs_rect9_pts)
-plt.fill(obs_rect9_pts[0, :], obs_rect9_pts[1, :], 'r')
-
-obs_rect10_pts = obs_rect10.vertices()
-obs_rect10_pts = reorder_verts_2D(obs_rect10_pts)
-plt.fill(obs_rect10_pts[0, :], obs_rect10_pts[1, :], 'r')
-
-obs_rect11_pts = obs_rect11.vertices()
-obs_rect11_pts = reorder_verts_2D(obs_rect11_pts)
-plt.fill(obs_rect11_pts[0, :], obs_rect11_pts[1, :], 'r')
-
-obs_rect12_pts = obs_rect12.vertices()
-obs_rect12_pts = reorder_verts_2D(obs_rect12_pts)
-plt.fill(obs_rect12_pts[0, :], obs_rect12_pts[1, :], 'r')
-
-obs_rect13_pts = obs_rect13.vertices()
-obs_rect13_pts = reorder_verts_2D(obs_rect13_pts)
-plt.fill(obs_rect13_pts[0, :], obs_rect13_pts[1, :], 'r')
-
-obs_rect14_pts = obs_rect14.vertices()
-obs_rect14_pts = reorder_verts_2D(obs_rect14_pts)
-plt.fill(obs_rect14_pts[0, :], obs_rect14_pts[1, :], 'r')
-
-# for pt in mega_coords:
-#     plt.plot(pt[0], pt[1], 'bo')
-
 # plot the polytopes
 colour_list = ['orange', 'turquoise', 'indianred', 'darkseagreen', 'palevioletred', 
                'goldenrod', 'forestgreen', 'mediumpurple', 'peru', 'rosybrown', 'orange', 
@@ -881,9 +1308,7 @@ idx = 0
 
 for group_verts in vertex_list:
     group_verts = reorder_verts_2D(group_verts)
-    # print('The points')
-    # print(group_verts[0, :], group_verts[1, :])
-    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
+    # plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
     plt.fill(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))])
     idx += 1
 
@@ -895,50 +1320,8 @@ for inter in inters_list:
     if inter_vertex.size > 0:
         group_inters = reorder_verts_2D(inter_vertex)
         plt.fill(group_inters[0,:], group_inters[1,:], 'lime')
-        # plt.plot(group_inters[0,:], group_inters[1,:], 'orange', linewidth = 2)
 
-# # plot all the neighbour connections
-# for node in nodes:
-#     ncoords = node.coords
-
-#     for neigh in node.neighbours:
-#         neighcoords = neigh.coords
-        
-#         x_vals = [ncoords[0], neighcoords[0]]
-#         y_vals = [ncoords[1], neighcoords[1]]
-
-#         plt.plot(x_vals, y_vals, 'slategrey')
-
-# print(f'Startode neighbours: {startnode.neighbours}')
-
-# for neigh in startnode.neighbours:
-#     print(neigh.coords)
-
-# print(f'Goalnode neighbours: {goalnode.neighbours}')
-
-
-# print(vertex_dict.keys())
-
-# print(f'Startnode: {startnode.coords}')
-
-# for n in startnode.neighbours:
-#     print(n.coords)
-
-
-# print(f'Goalnode: {goalnode.coords}')
-
-# for n in goalnode.neighbours:
-#     print(n.coords)
-
-
-# for node in nodes:
-#     print(f'Node is: {node.coords}')
-
-#     for n in node.neighbours:
-#         print(n.coords)
-
-
-if path:
+if t_plan != -1:
     path_len = len(path)
     idx = 0
     while idx != path_len - 1:
@@ -972,28 +1355,5 @@ print(f'Time taken to generate start/goal points: {time_points}')
 print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
 print(f'Total Time: {t_IRIS + t_plan + time_intersect + time_build + time_points + time_points_neighbours}')
 
-
-# print(f'Obstacles vertices are: {obs_rect1_pts}')
-
-
-###### SUMMARY OF DIJKSTRA'S/NODE STUFF
-# print(f'Startnode: {startnode.coords}')
-
-# for n in startnode.neighbours:
-#     print(n.coords)
-
-
-# print(f'Goalnode: {goalnode.coords}')
-
-# for n in goalnode.neighbours:
-#     print(n.coords)
-
 plt.axis('equal')
 plt.show()
-
-
-# for node in nodes:
-#     print(f'Node is: {node.coords}')
-
-#     for n in node.neighbours:
-#         print(n.coords)
