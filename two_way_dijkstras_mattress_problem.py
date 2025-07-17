@@ -24,8 +24,8 @@ import torch
 
 
 STEP_SIZE = 0.5
-NMAX = 2000
-SMAX = 1000
+NMAX = 5000
+SMAX = 5000
 
 device='cpu'
 
@@ -198,8 +198,20 @@ class Visualization:
 
 ###############################################################################################
 # RRT, AND COLLISION-CHECKING FUNCTIONS
-def inFreespace(next_node):
+def inFreespace(next_node, starts, goals):
+
+    # print(f'Nextnode is: {next_node}')
+    # print(f'Starts is: {starts}')
     
+    # start_equality_mask = ((next_node[:,0] == starts[:,0]) & (next_node[:,1] == starts[:,1])) | ((next_node[:,0] == goals[:,0]) & (next_node[:,1] == goals[:,1]))
+    
+    start_equality_mask = torch.any(torch.all(next_node[:,None,:] == starts[None,:,:], dim=2), dim=1)
+
+    goal_equality_mask = torch.any(torch.all(next_node[:,None,:] == goals[None,:,:], dim=2), dim=1)
+
+    # print(f'Start equality mask: {start_equality_mask}')
+    # print(f'Goal equality mask is: {goal_equality_mask}')
+
     # check that the next point is in-bounds
 
     # returns False if any condition fails and True if all conditions pass
@@ -215,12 +227,14 @@ def inFreespace(next_node):
     mask2 = mask.all(dim=2)
     mask3 = mask2.any(dim=0)
 
-    final_mask = in_bounds_mask & ~mask3
+    final_mask = (in_bounds_mask & ~mask3) | start_equality_mask | goal_equality_mask
+
+    # print(f'Final Mask looks like this: {final_mask}')
 
     return final_mask
 
 
-def connectsTo(tens_start, tens_goal):
+def connectsTo(tens_start, tens_goal, starts, goals):
 
     # Here we take in the tensors defining the start and goal points for each RRT
     # We start by doing an initial check to see which pairs of start-goal entries have the same x-value (vertical line check)
@@ -257,7 +271,8 @@ def connectsTo(tens_start, tens_goal):
 
         new = torch.tensor([[x_vals_non_vert[b][a], y_vals_non_vert[b][a]] for a in range(len(start_non_vert))], dtype=torch.float, device=device)
         
-        result = inFreespace(new)
+        # print(f'from connects to')
+        result = inFreespace(new, starts, goals)
 
         connects_non_vert = connects_non_vert & result
 
@@ -292,7 +307,8 @@ def connectsTo(tens_start, tens_goal):
 
             new = torch.tensor([[x_vals_vert[b][a], y_vals_vert[b][a]] for a in range(len(start_vert))], dtype=torch.float, device=device)
             
-            result = inFreespace(new)
+            # print('from connects to')
+            result = inFreespace(new, starts, goals)
 
             connects_vert = connects_vert & result
 
@@ -306,12 +322,26 @@ def connectsTo(tens_start, tens_goal):
 
 # RUN RRT IN GPU (CPU for now)
 def do_rrt(start_r, goal_r):
+    t_begin_rrt = time.time()
     stuck_counter = 0
     device = torch.device('cpu')
     starts = torch.tensor(start_r, dtype=torch.float, device=device)
     goals = torch.tensor(goal_r, dtype=torch.float, device=device)
 
     batch_size = len(start_r)
+
+
+    # checking the RRT freespace definition
+    ans = inFreespace(starts, starts, goals)
+    print(f'Answer for whether the starts are in Freespace: {ans}')
+
+    ans = inFreespace(goals, starts, goals)
+    print(f'Answer for whether the goals are in Freespace: {ans}')
+
+    # I think I found an issue. Whenever things get stuck, it's because it sees the
+    # starts/goal values as not being in freespace
+
+    # time.sleep(20)
 
     # batch_size = 1
     print(f'Batch size is: {batch_size}')
@@ -334,6 +364,7 @@ def do_rrt(start_r, goal_r):
         # increment the node cout
         next_node_index = node_counts[valid_batches]
         node_counts[valid_batches] += 1
+        step_counts[valid_batches] += 1
         
     def addtogoal(goal_batches, goal_nodes):
 
@@ -347,10 +378,12 @@ def do_rrt(start_r, goal_r):
 
     # GO INTO THE LOOP LOGIC #######################
     step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
-    p = 0.3
+    p = 0.4
 
     active_batches = torch.ones(batch_size, dtype=torch.bool, device=device)
     all_goal_batches = torch.tensor([], dtype=torch.long, device=device)
+
+    seen_flag = False
 
     while True:
         iter += 1
@@ -457,7 +490,8 @@ def do_rrt(start_r, goal_r):
         
 
         # freespace_mask_cpu is a numpy array
-        freespace_mask = inFreespace(nextnode)
+        # print('from rrt')
+        freespace_mask = inFreespace(nextnode, starts, goals)
 
         # convert the numpy array to a tensor
         
@@ -467,7 +501,7 @@ def do_rrt(start_r, goal_r):
         
 
         # then we send the nearnode numpy array and the nextnode numpy array to the connectsTo function
-        connects_mask = connectsTo(nearnode, nextnode)
+        connects_mask = connectsTo(nearnode, nextnode, starts, goals)
 
     
 
@@ -494,7 +528,7 @@ def do_rrt(start_r, goal_r):
             print(f'Node counts: {node_counts}')
             print(f'Step counts: {step_counts}')
             print(f'Active batches: {active_batches}')
-
+            print(f'Stuck Counter: {stuck_counter}')
 
         if valid_nextnodes.shape[0] == 0:
             continue
@@ -522,7 +556,7 @@ def do_rrt(start_r, goal_r):
 
         # Next we must create another mesh that tests whether the valid nextnode connects to the 
         # goalnode
-        goal_connects_mask = connectsTo(valid_nextnodes, possible_goal)
+        goal_connects_mask = connectsTo(valid_nextnodes, possible_goal, starts, goals)
         # compare both masks
         # print('Check mask types')
         # print(dist_mask.dtype)
@@ -567,7 +601,8 @@ def do_rrt(start_r, goal_r):
         # Increment the number of steps. Recall the following step tensor definition
         # step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
 
-        step_counts[active_batches] += 1
+        ###FIXME: MOVING THIS TEMPORARILY TO SEE IF THIS CHANGES ANYTHING
+        # step_counts[active_batches] += 1
 
         # Test to see if the step counts for any batch has exceeded the maximum steps
         step_mask = step_counts >= SMAX
@@ -583,16 +618,25 @@ def do_rrt(start_r, goal_r):
 
         # And then the last thing is that I should break/end the loop if all the batches
         # have been stopped
-        if False in active_batches:
-            # print(active_batches)
-            pass
-        if not active_batches.any() or iter >= 1000:
+        if False in active_batches and seen_flag == False:
+            t_end_rrt = time.time()
+            seen_flag = True
+            t_rrt = t_end_rrt - t_begin_rrt
+            print(f'First path found in time: {t_rrt} seconds')
+
+        if not active_batches.any():
             if (step_counts >= SMAX).all() | (node_counts >= NMAX).all():
+                t_end_rrt = time.time()
+                t_rrt = t_end_rrt - t_begin_rrt
                 print(f'Process Aborted at Node Count = {node_counts} and \nStep Count = {step_counts}. No path found')
-                return None
+                return t_rrt, None
+            break
+        
+        # FIXME: Might change this if I find that a better p-value or STEP-SIZE value stops things from getting stuck
+        # as frequently
+        if iter > 6000:
             break
 
-    tf = time.time()
     print(node_counts, step_counts)
     print(f'Stuck counter: {stuck_counter}')
     node_counts_cpu = node_counts.cpu().numpy()
@@ -607,7 +651,7 @@ def do_rrt(start_r, goal_r):
     print(f'The goal points were: {goals}')
     print(f'Number of paths found: {len(all_paths)}')
     # print(f'These are the paths: {all_paths}')
-    return all_paths
+    return t_rrt, all_paths
 
 def buildPath(goal_idx, node_parents, node_positions, batch_size, goal_batches, starts, goals):
     
@@ -1207,12 +1251,15 @@ def run_planner(start, goal):
 
         # check that the deck is not empty
         if not (len(onDeck) > 0):
+            t_fail_end = time.time()
             print('Path not found for forward Dijkstra')
             # print(f'The start_failure_nodes are: {start_failure_coords}')
             path = start_failure_nodes
             time_found = -1
 
-            return start_failure_nodes, time_found
+            t_forward = t_fail_end - t0
+
+            return start_failure_nodes, time_found, t_forward
         
         # Pop the next node (state) from the deck
         node = onDeck.pop(0)
@@ -1239,7 +1286,9 @@ def run_planner(start, goal):
 
             print(f'Goal found. Goal cost is: {total_cost} in Time: {t_planner}')
 
-            return path, t_planner
+            t_forward = t_planner
+
+            return path, t_planner, t_forward
         
         elif node == start:
 
@@ -1287,11 +1336,13 @@ def run_reverse_planner(goal):
 
         # check that the deck is not empty
         if not (len(onDeck2) > 0):
+            t_rev_end = time.time()
             print('Path not found for reverse Dijkstra')
             # print(f'The goal_failure_nodes are: {goal_failure_coords}')
             path = []
+            t_rev = t_rev_end - t0
 
-            return goal_failure_nodes
+            return goal_failure_nodes, t_rev
         
         # Pop the next node (state) from the deck
         node = onDeck2.pop(0)
@@ -1327,7 +1378,7 @@ def run_reverse_planner(goal):
                         element.parent = node
                         bisect.insort(onDeck2, element)
 
-path, t_plan = run_planner(startnode, goalnode)
+path, t_plan, t_forward = run_planner(startnode, goalnode)
 
 path_fixes = False    # for fix in path_fixes:
     #     if len(fix > 0):
@@ -1336,14 +1387,14 @@ path_fixes = False    # for fix in path_fixes:
 if t_plan == -1:
     start_fails = path
     # this means that the start to goal Dijkstra's planner failed
-    goal_fails = run_reverse_planner(goalnode)
+    goal_fails, t_reverse = run_reverse_planner(goalnode)
 
 
     # from here, I have a list of all the popped nodes from start to failure and goal to failure
 
     # I need to come up with a better metric for finding nodes. Let's get the 10 best nodes from
     # each list
-
+    t_pairs_start = time.time()
     best_node_pairs = []
     best_distances = []
 
@@ -1410,65 +1461,93 @@ if t_plan == -1:
 
     # let's use a visibility metric instead and then if the list is too long, we can
     # do a secondary distance metric to weed out the unreasonable pairs
+
+    # Main concerns: It takes a long time to assemble the node pairs, and I'm not sure whether the method I'm
+    # using is even good to begin with --> Sometimes, many of the node pairs will share the same start/goal node
+    # so not much diversity in paths --> but at the same time I can see how that can sometimes be a good thing
     print('Assembling the node pairs')
+    print(f'Length of start_fails: {len(start_fails)}')
+    print(f'Length of goal_fails: {len(goal_fails)}')
+    # if len(start_fails) > 10:
+    #     start_fails = start_fails[0:10]
+    # if len(goal_fails) > 10:
+    #     goal_fails = goal_fails[0:10]
+
+    # print(f'Length of start_fails: {len(start_fails)}')
+    # print(f'Length of goal_fails: {len(goal_fails)}')
+
+
+    t_check1_start = time.time()
     for start_fail in start_fails:
-        check_pairs = []
-        check_distances = []
 
-        for goal_fail in goal_fails:
-            
-            fails_connect = connect_fails(start_fail.coords, goal_fail.coords)
+        if distance(start_fail.coords, goalnode.coords) <= 1.5*distance(startnode.coords, goalnode.coords):
 
-            if fails_connect == True:
+            check_pairs = []
+            check_distances = []
+
+            for goal_fail in goal_fails:
+
+                if distance(goal_fail.coords, startnode.coords) <= 1.5*distance(startnode.coords, goalnode.coords):
                 
+                    fails_connect = connect_fails(start_fail.coords, goal_fail.coords)
 
-                dist = distance(start_fail.coords, goal_fail.coords)
-                # best_distances.append(dist)
-                # best_node_pairs.append([start_fail, goal_fail])
+                    if fails_connect == True:
+                        
 
-                check_distances.append(dist)
-                check_pairs.append([start_fail, goal_fail])
-
-        # choose the best pair
-        if len(check_distances) > 0:
-            best_idx = np.argmin(check_distances)
-            if check_pairs[best_idx] not in best_node_pairs:
-                best_node_pairs.append(check_pairs[best_idx])
-                best_distances.append(check_distances[best_idx])
-
-
-
-    # NEVERMIND! In this example, the visibility metric also flops :/
-    if len(best_node_pairs) < 3:
-
-        min_dist = 3
-        max_dist = 6
-
-        while len(best_node_pairs) < 5:
-
-            for start_fail in start_fails:
-                
-                check_pairs = []
-                check_distances = []
-
-                for goal_fail in goal_fails:
-
-                    dist = distance(start_fail.coords, goal_fail.coords)
-
-                    if (dist >= min_dist) and (dist <= max_dist):
+                        dist = distance(start_fail.coords, goal_fail.coords)
+                        # best_distances.append(dist)
+                        # best_node_pairs.append([start_fail, goal_fail])
 
                         check_distances.append(dist)
                         check_pairs.append([start_fail, goal_fail])
 
-                # choose the best pair
-                if len(check_distances) > 0:
-                    best_idx = np.argmin(check_distances)
-                    if check_distances[best_idx] not in best_node_pairs:
-                        best_node_pairs.append(check_pairs[best_idx])
-                        best_distances.append(check_distances[best_idx])
-                        
+            # choose the best pair
+            if len(check_distances) > 0:
+                best_idx = np.argmin(check_distances)
+                if check_pairs[best_idx] not in best_node_pairs:
+                    best_node_pairs.append(check_pairs[best_idx])
+                    best_distances.append(check_distances[best_idx])
 
-    # FIXME: Change this soon
+    t_check1_end = time.time()
+    print(f'Time for first check: {t_check1_end - t_check1_start}')
+    print(f'Length of best_node_pairs after first check: {len(best_node_pairs)}')
+
+    t_check2_start = time.time()
+    if len(best_node_pairs) < 5:
+
+        min_dist = 2
+        max_dist = 6
+
+        for start_fail in start_fails:
+
+            if len(best_node_pairs) < 5:
+
+                if distance(start_fail.coords, goalnode.coords) <= 1.5*distance(startnode.coords, goalnode.coords):
+                
+                    check_pairs = []
+                    check_distances = []
+
+                    for goal_fail in goal_fails:
+
+                        if distance(goal_fail.coords, startnode.coords) <= 1.5*distance(startnode.coords, goalnode.coords):
+
+                            dist = distance(start_fail.coords, goal_fail.coords)
+
+                            if (dist >= min_dist) and (dist <= max_dist):
+
+                                check_distances.append(dist)
+                                check_pairs.append([start_fail, goal_fail])
+
+                    # choose the best pair
+                    if len(check_distances) > 0:
+                        best_idx = np.argmin(check_distances)
+                        if check_pairs[best_idx] not in best_node_pairs:
+                            best_node_pairs.append(check_pairs[best_idx])
+                            best_distances.append(check_distances[best_idx])
+    t_check2_end = time.time()
+    print(f'Time taken for second check: {t_check2_end - t_check2_start}')                   
+
+    # FIXME: Putting this here for now to do small batch checks
     if len(best_node_pairs) > 5:
         best_node_pairs = best_node_pairs[0:5]
 
@@ -1485,6 +1564,8 @@ if t_plan == -1:
 
     # print(f'Start nodes are: {start_rrt}')
     # print(f'Goal nodes are: {goal_rrt}')
+    t_pairs_end = time.time()
+    t_pairs = t_pairs_end - t_pairs_start
 
 
     # also want to have a version of the obstacles as polyhdrons to prep for the inFreespace call
@@ -1509,8 +1590,8 @@ if t_plan == -1:
 
     A_stack_T = A_stack.transpose(1, 2)
 
-    # just do the call here :/
-    path_fixes = do_rrt(start_rrt, goal_rrt)
+
+    t_rrt, path_fixes = do_rrt(start_rrt, goal_rrt)
 
     print(f'RRT results: {path_fixes}')
 
@@ -1590,17 +1671,17 @@ obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
 plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
 
 # plot the polytopes
-colour_list = ['orange', 'turquoise', 'indianred', 'darkseagreen', 'palevioletred', 
-               'goldenrod', 'forestgreen', 'mediumpurple', 'peru', 'rosybrown', 'orange', 
-               'turquoise', 'indianred', 'darkseagreen', 'orange', 'turquoise', 'indianred', 
+colour_list = ['turquoise', 'indianred', 'darkseagreen', 'palevioletred', 
+               'goldenrod', 'forestgreen', 'mediumpurple', 'peru', 'rosybrown', 
+               'turquoise', 'indianred', 'darkseagreen', 'turquoise', 'indianred', 
                'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 
-               'peru', 'rosybrown', 'orange', 'turquoise', 'indianred', 'darkseagreen', 
-               'orange', 'turquoise', 'indianred', 
+               'peru', 'rosybrown', 'turquoise', 'indianred', 'darkseagreen', 
+                'turquoise', 'indianred', 
                'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 
-               'peru', 'rosybrown', 'orange', 'turquoise', 'indianred', 'darkseagreen', 
-               'orange', 'turquoise', 'indianred', 
+               'peru', 'rosybrown', 'turquoise', 'indianred', 'darkseagreen', 
+                'turquoise', 'indianred', 
                'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 
-               'peru', 'rosybrown', 'orange', 'turquoise', 'indianred', 'darkseagreen']
+               'peru', 'rosybrown',  'turquoise', 'indianred', 'darkseagreen']
 idx = 0
 
 for group_verts in vertex_list:
@@ -1638,7 +1719,9 @@ else:
 
 # plot the forward and reverse dijkstra's paths
 # need to write code for drawing the Dijkstra paths
+path_fix_cols = ['black', 'blue', 'magenta', 'green', 'orange']
 if t_plan == -1:
+    col_idx = 0
     for fore in forward_dij_paths:
 
         # plot each path in forward_dij_path
@@ -1648,9 +1731,11 @@ if t_plan == -1:
             while idx != len_fore - 1:
                 x_vals = [fore[idx].coords[0], fore[idx+1].coords[0]]
                 y_vals = [fore[idx].coords[1], fore[idx+1].coords[1]]
+                plt.plot(x_vals, y_vals, path_fix_cols[col_idx])
                 idx += 1
-                plt.plot(x_vals, y_vals, 'black')
+        col_idx += 1
 
+    col_idx = 0
     for rev in reverse_dij_paths:
         
         if len(rev) > 0:
@@ -1659,8 +1744,9 @@ if t_plan == -1:
             while idx != len_rev - 1:
                 x_vals = [rev[idx].coords[0], rev[idx+1].coords[0]]
                 y_vals = [rev[idx].coords[1], rev[idx+1].coords[1]]
+                plt.plot(x_vals, y_vals, path_fix_cols[col_idx])
                 idx += 1
-                plt.plot(x_vals, y_vals, 'black')
+        col_idx += 1
 
 
 
@@ -1671,7 +1757,7 @@ if path_fixes != False and path_fixes != None:
     index = 0
     for batch_num, path in enumerate(path_fixes):
         if path:
-            visual.drawPath(path, color='blue', linewidth=1)
+            visual.drawPath(path, color=path_fix_cols[index], linewidth=1)
             # visual.show(f'RRT: Showing the raw path for batch {batch_num}')
             index += 1
         else:
@@ -1685,14 +1771,28 @@ for no in nodes:
 plt.plot(start[0], start[1], 'mo')
 plt.plot(goal[0], goal[1], 'mo')
 
-print("Time Report")
-print(f'Time for Iris: {t_IRIS}')
-print(f'Time for planner: {t_plan}')
-print(f'Time taken to check intersections: {time_intersect}')
-print(f'Time taken to build the graph: {time_build}')
-print(f'Time taken to generate start/goal points: {time_points}')
-print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
-print(f'Total Time: {t_IRIS + t_plan + time_intersect + time_build + time_points + time_points_neighbours}')
+if t_plan != -1:
+    print("Time Report")
+    print(f'Time for Iris: {t_IRIS}')
+    print(f'Time for planner: {t_plan}')
+    print(f'Time taken to check intersections: {time_intersect}')
+    print(f'Time taken to build the graph: {time_build}')
+    print(f'Time taken to generate start/goal points: {time_points}')
+    print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
+    print(f'Total Time: {t_IRIS + t_plan + time_intersect + time_build + time_points + time_points_neighbours}')
+
+else:
+    print("Time Report")
+    print(f'Time for Iris: {t_IRIS}')
+    print(f'Time taken to check intersections: {time_intersect}')
+    print(f'Time taken to build the graph: {time_build}')
+    print(f'Time taken to generate start/goal points: {time_points}')
+    print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
+    print(f'Time for forward Dijkstra: {t_forward}')
+    print(f'Time for reverse Dijkstra: {t_reverse}')
+    print(f'Time taken to generate RRT start/goal pairs: {t_pairs}')
+    print(f'Time taken to run RRT: {t_rrt}')
+    print(f'Total Time: {t_IRIS + t_forward + t_reverse + t_pairs + t_rrt + time_intersect + time_build + time_points + time_points_neighbours}')
 
 plt.axis('equal')
 plt.show()
