@@ -24,7 +24,7 @@ import torch
 
 
 STEP_SIZE = 0.5
-NMAX = 2000
+NMAX = 1000
 SMAX = 1000
 
 device='cpu'
@@ -310,6 +310,21 @@ def do_rrt(start_r, goal_r):
     device = torch.device('cpu')
     starts = torch.tensor(start_r, dtype=torch.float, device=device)
     goals = torch.tensor(goal_r, dtype=torch.float, device=device)
+    # print(f'first version of goals: {goals}')
+
+    # LET'S RIG IT LOL
+    # starts = torch.tensor([[21, 5]], dtype=torch.float, device=device)
+    # goals = torch.tensor([[18, 5]], dtype=torch.float, device=device)
+    # print(f'second version of goals: {goals}')
+    
+    # # looks good so far
+    # print(f'Starts are: {starts}')
+    # print(f'Goals are: {goals}')
+
+    # print(f'starts are {starts}')
+    # print(f'start coords-x are {starts[:, 0]}')
+
+    # next need to run the actual RRT algorithm (pray 4 me)
 
     batch_size = len(start_r)
 
@@ -494,6 +509,7 @@ def do_rrt(start_r, goal_r):
             print(f'Node counts: {node_counts}')
             print(f'Step counts: {step_counts}')
             print(f'Active batches: {active_batches}')
+            print(f'Stuck counter: {stuck_counter}')
 
 
         if valid_nextnodes.shape[0] == 0:
@@ -586,7 +602,7 @@ def do_rrt(start_r, goal_r):
         if False in active_batches:
             # print(active_batches)
             pass
-        if not active_batches.any() or iter >= 1000:
+        if not active_batches.any():
             if (step_counts >= SMAX).all() | (node_counts >= NMAX).all():
                 print(f'Process Aborted at Node Count = {node_counts} and \nStep Count = {step_counts}. No path found')
                 return None
@@ -601,7 +617,7 @@ def do_rrt(start_r, goal_r):
     goal_indices = node_counts_cpu - 1
     all_goal_batches_cpu = all_goal_batches.cpu().numpy()
     # Let's send all this stuff to a function outside of the rrt called buildPath
-    all_paths = buildPath(goal_indices, tree_parents_cpu, tree_positions_cpu, batch_size, all_goal_batches_cpu, starts, goals)
+    all_paths = buildPath(goal_indices, tree_parents_cpu, tree_positions_cpu, batch_size, all_goal_batches_cpu)
     
     print(f'The start points were: {starts}')
     print(f'The goal points were: {goals}')
@@ -609,7 +625,7 @@ def do_rrt(start_r, goal_r):
     # print(f'These are the paths: {all_paths}')
     return all_paths
 
-def buildPath(goal_idx, node_parents, node_positions, batch_size, goal_batches, starts, goals):
+def buildPath(goal_idx, node_parents, node_positions, batch_size, goal_batches):
     
     # print('Now building the path')
     path = []
@@ -634,28 +650,11 @@ def buildPath(goal_idx, node_parents, node_positions, batch_size, goal_batches, 
             idx = node_parents[batch_num, idx]
 
         current_path.reverse()
-        tup_list = [tuple(x for x in point) for point in current_path]
-        node_list = []
-        # let's just find the 'start' and 'goal' nodes here because something keeps getting messed up
-        for (x, y) in tup_list:
-            if tup_list.index((x, y)) == 0: # this means we have a start node
-                # this means there exists an actual corresponding node
-                corres_start = starts[batch_num]
-                corres_node = [n for n in nodes if (n.coords[0] == corres_start[0]) and (n.coords[1] == corres_start[1])]
-                corres_node = corres_node[0]
-                node_list.append(corres_node)
-            elif tup_list.index((x, y)) == len(tup_list) - 1:
-                corres_goal = goals[batch_num]
-                corres_node = [n for n in nodes if (n.coords[0] == corres_goal[0]) and (n.coords[1] == corres_goal[1])]
-                corres_node = corres_node[0]
-                node_list.append(corres_node)
-            else:
-                node_list.append(Node(None, [x, y]))
-        
+        tup_list = [tuple(float(x) for x in point) for point in current_path]
+        node_list = [Node(None,[x, y]) for (x,y) in tup_list]
         path.append(node_list)
         
         # print('Checking path validity ahhhhh')
-        # there's some weird rounding thing happening here. idk what it is :/
         
         for ele in range(len(tup_list) - 1):
             
@@ -1216,7 +1215,7 @@ def run_planner(start, goal):
         
         # Pop the next node (state) from the deck
         node = onDeck.pop(0)
-        start_failure_coords.append([node.coords[0], node.coords[0]])
+        start_failure_coords.append([round(node.coords[0], 6), round(node.coords[0], 6)])
         start_failure_nodes.append(node)
 
         node.done = True # this means the node has been processed
@@ -1295,7 +1294,7 @@ def run_reverse_planner(goal):
         
         # Pop the next node (state) from the deck
         node = onDeck2.pop(0)
-        goal_failure_coords.append([node.coords[0], node.coords[0]])
+        goal_failure_coords.append([round(node.coords[0], 6), round(node.coords[0], 6)])
         goal_failure_nodes.append(node)
 
         node.done = True # this means the node has been processed
@@ -1439,12 +1438,12 @@ if t_plan == -1:
 
 
     # NEVERMIND! In this example, the visibility metric also flops :/
-    if len(best_node_pairs) < 3:
+    if len(best_node_pairs) < 1:
 
-        min_dist = 3
-        max_dist = 6
+        min_dist = 4
+        max_dist = 5
 
-        while len(best_node_pairs) < 5:
+        while len(best_node_pairs) < 3:
 
             for start_fail in start_fails:
                 
@@ -1469,8 +1468,8 @@ if t_plan == -1:
                         
 
     # FIXME: Change this soon
-    if len(best_node_pairs) > 5:
-        best_node_pairs = best_node_pairs[0:5]
+    if len(best_node_pairs) > 3:
+        best_node_pairs = best_node_pairs[0:3]
 
     start_rrt = []
     goal_rrt = []
@@ -1478,7 +1477,6 @@ if t_plan == -1:
     print(f'Length of best_node_pairs: {len(best_node_pairs)}')
     # need to start creating the 'start and goal nodes' based on which nodes are first and second in the pair
     for pair in best_node_pairs:
-        # the actual start_rrt and goal_rrt list values are numbers not nodes. Maybe this is problematic
         print(f'Pair is {pair[0].coords, pair[1].coords}')
         start_rrt.append(pair[0].coords)
         goal_rrt.append(pair[1].coords)
@@ -1521,32 +1519,27 @@ if t_plan == -1:
     # let's start by doing the connections from the start node to the start node of the RRT paths
     forward_dij_paths = []
     reverse_dij_paths = []
-    # FIXME: Need to introduce a conditions that says if path_fixes != None
     for path in path_fixes:
-        if path != None:
-            forward_temp_dij_path = []
-            part1_goal = path[0]
-            # part1_goal is already of type node. However, this node is not the same as the regular nodes that
-            # have polytopes associated with them yayyy! so i need to find those separately
+        forward_temp_dij_path = []
+        part1_goal = path[0]
+        # part1_goal is already of type node. So basically we just built the Dijkstra's
+        # path from part1_goal to the start
+        node_parent = part1_goal
+        while node_parent != None:
+            forward_temp_dij_path.append(node_parent)
+            node_parent = node_parent.parent
+        forward_temp_dij_path.reverse()
+        forward_dij_paths.append(forward_temp_dij_path)
 
-            node_parent = part1_goal
-            while node_parent != None:
-                forward_temp_dij_path.append(node_parent)
-                node_parent = node_parent.parent
-            forward_temp_dij_path.reverse()
-            forward_dij_paths.append(forward_temp_dij_path)
+        reverse_temp_dij_path = []
+        part2_start = path[-1]
 
-            reverse_temp_dij_path = []
-            part2_start = path[-1]
-
-
-            # need to find a better was to assign the parents.
-            # I think I need to build from the part2_start node to the goal
-            node_parent = part2_start
-            while node_parent != None:
-                reverse_temp_dij_path.append(node_parent)
-                node_parent = node_parent.parent
-            reverse_dij_paths.append(reverse_temp_dij_path)
+        node_parent = goalnode.parent
+        while node_parent != part2_start.parent:
+            reverse_temp_dij_path.append(node_parent)
+            node_parent = node_parent.parent
+        reverse_temp_dij_path.reverse()
+        reverse_dij_paths.append(reverse_temp_dij_path)
 
     print('checking if this works lol')
 ###################################################################################################################
@@ -1635,47 +1628,38 @@ if t_plan != -1:
 else:
     print('IRIS Path not found')
 
-
-# plot the forward and reverse dijkstra's paths
-# need to write code for drawing the Dijkstra paths
 if t_plan == -1:
+    # plot the forward and reverse dijkstra's paths
     for fore in forward_dij_paths:
-
-        # plot each path in forward_dij_path
-        if len(fore) > 0:
-            len_fore = len(fore)
-            idx = 0
-            while idx != len_fore - 1:
-                x_vals = [fore[idx].coords[0], fore[idx+1].coords[0]]
-                y_vals = [fore[idx].coords[1], fore[idx+1].coords[1]]
-                idx += 1
-                plt.plot(x_vals, y_vals, 'black')
+        len_fore = len(fore)
+        idx = 0
+        while idx != len_fore - 1:
+            x_vals = [fore[idx].coords[0], fore[idx+1].coords[0]]
+            y_vals = [fore[idx].coords[1], fore[idx+1].coords[1]]
+            idx += 1
+            plt.plot(x_vals, y_vals, 'black')
 
     for rev in reverse_dij_paths:
-        
-        if len(rev) > 0:
-            len_rev = len(rev)
-            idx = 0
-            while idx != len_rev - 1:
-                x_vals = [rev[idx].coords[0], rev[idx+1].coords[0]]
-                y_vals = [rev[idx].coords[1], rev[idx+1].coords[1]]
-                idx += 1
-                plt.plot(x_vals, y_vals, 'black')
+        len_rev = len(rev)
+        idx = 0
+        while idx != len_rev - 1:
+            x_vals = [rev[idx].coords[0], rev[idx+1].coords[0]]
+            y_vals = [rev[idx].coords[1], rev[idx+1].coords[1]]
+            idx += 1
+            plt.plot(x_vals, y_vals, 'black')
 
+    # Draw the RRT paths:
+    visual = Visualization()
 
-
-# Draw the RRT paths:
-visual = Visualization()
-
-if path_fixes != False and path_fixes != None:
-    index = 0
-    for batch_num, path in enumerate(path_fixes):
-        if path:
-            visual.drawPath(path, color='blue', linewidth=1)
-            # visual.show(f'RRT: Showing the raw path for batch {batch_num}')
-            index += 1
-        else:
-            print(f'RRT: No path found for batch {batch_num}')
+    if path_fixes != False and path_fixes != None:
+        index = 0
+        for batch_num, path in enumerate(path_fixes):
+            if path:
+                visual.drawPath(path, color='blue', linewidth=1)
+                # visual.show(f'RRT: Showing the raw path for batch {batch_num}')
+                index += 1
+            else:
+                print(f'RRT: No path found for batch {batch_num}')
 
 # plot all the nodes (includes the vertices)
 for no in nodes:
