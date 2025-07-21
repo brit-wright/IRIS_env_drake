@@ -1,32 +1,16 @@
-#!/usr/bin/env python3.10
+# PUTS RANDOM OBSTACLES ON THE MAP AND SOLVES USING VERTICES ONLY
+
+#!/usr/bin/env python3.8
 import numpy as np
 import matplotlib.pyplot as plt
-
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
+import time
+from pydrake.all import *
+import random
+from builtins import min as pymin
+from builtins import max as pymax
+import bisect
 from math import sqrt, inf
 
-import shapely
-
-import random
-
-from pydrake.all import *
-
-import bisect
-
-import time
-###############################################################################################
-# Create a seed
-# seed = int(random.random()*10000)
-# seed = 2040
-# random.seed(seed)
-# print(f"{seed=}")
 ###############################################################################################
 # helper functions
 
@@ -79,6 +63,81 @@ def get_ellipse_pts_2D(B, c):
     return ellipse
 
 ###############################################################################################
+# CHECK FOR OBSTACLE INTERSECTIONS
+
+def rect_intersects(rx1, rx2, ry1, ry2, rect_obstacles):
+    
+    if rect_obstacles == []:
+        return False
+    
+    rxmin = min(rx1, rx2)
+    rxmax = max(rx1, rx2)
+    rymin = min(ry1, ry2)
+    rymax = max(ry1, ry2)
+
+    rtl = [rxmin, rymax]
+    rtr = [rxmax, rymax]
+    rbl = [rxmin, rymin]
+    rbr = [rxmax, rymin]
+
+    test_pts = np.array([rbl, rbr, rtr, rtl])
+    test_VPol = VPolytope(test_pts.T)
+    test_Hpol = HPolyhedron(test_VPol)
+    
+    for r in rect_obstacles:
+        
+        rect_Hpol = HPolyhedron(r)
+
+        inter = test_Hpol.Intersection(rect_Hpol)
+
+        vpol_inter = VPolytope(inter)
+
+        if vpol_inter.vertices().size > 0:
+            return True
+    
+    return False
+
+def tri_intersects(rx1, rx2, rx3, ry1, ry2, ry3, shape_obstacles):
+
+    if obstacles == []:
+        return False
+    
+    pt1 = [rx1, ry1]
+    pt2 = [rx2, ry2]
+    pt3 = [rx3, ry3]
+
+    test_tri_pts = np.array([pt1, pt2, pt3])
+    test_tri_VPol = VPolytope(test_tri_pts.T)
+    test_tri_Hpol = HPolyhedron(test_tri_VPol)
+
+    # check for intersections with all of the VPOlytopes so far
+    for s in shape_obstacles:
+
+        shape_Hpol = HPolyhedron(s)
+        inter = test_tri_Hpol.Intersection(shape_Hpol)
+        vpol_inter = VPolytope(inter)
+
+        if vpol_inter.vertices().size > 0:
+            return True
+
+    return False
+
+def ell_intersects(shape_obstacles, ellipse_a, center):
+    
+    if shape_obstacles == []:
+        return False
+    
+    # form the hyperellipsoid using the ellipse information
+    ell = Hyperellipsoid(ellipse_a, center)
+
+    for s in shape_obstacles:
+
+        if ell.IntersectsWith(s) == True:
+            return True
+    
+    return False
+
+###############################################################################################
 # DOMAIN AND OBSTACLES
 
 # define the domain of the problem, Xcal = {x | Ax <= b}
@@ -98,50 +157,128 @@ domain_b = np.array([[x1_max],
                               [-x2_min]])
 domain = HPolyhedron(domain_A, domain_b)
 
-
 # V_polytope rectangles
-rect_pts1 = np.array([[0, 10],
-                     [15, 10],
-                     [15, 9.9],
-                     [0, 9.9]])
+def build_rectangles(num_rectangles, obstacles):
+    rectangle_list = []
 
-rect_pts2 = np.array([[18, 10],
-                     [30, 10],
-                     [30, 9.9],
-                     [18, 9.9]])
+    rect_obs = []
 
-rect_pts3 = np.array([[15, 20],
-                      [15, 12],
-                      [14.9, 12],
-                      [14.9, 20]])
+    for rect_num in range(num_rectangles):
 
-rect_pts4 = np.array([[12, 12],
-                      [15, 12],
-                      [15, 11.9],
-                      [12, 11.9]])
+        rx1 = int(random.random() * (x1_max - x1_min) + x1_min)
+        rx2 = int(random.random() * (x1_max - x1_min) + x1_min)
+        ry1 = int(random.random() * (x2_max - x2_min) + x2_min)
+        ry2 = int(random.random() * (x2_max - x2_min) + x2_min)
 
-rect_pts5 = np.array([[15, 10],
-                      [15, 5],
-                      [14.9, 5],
-                      [14.9, 10]])
+        # print(xmax, ymax)
+        while ((abs(rx1 - rx2) <= 0.5 or abs(ry1 - ry2) <= 0.5) or (abs(rx1 - rx2) > 6 or abs(ry1 - ry2) > 6) 
+            or (min(rx1, rx2) < x1_min) or (max(rx1, rx2) > x1_max) or (min(ry1, ry2) < x2_min) or (max(ry1, ry2) > x2_max) or rect_intersects(rx1, rx2, ry1, ry2, obstacles) == True):
+            rx1 = int(random.random() * (x1_max - x1_min) + x1_min)
+            rx2 = int(random.random() * (x1_max - x1_min) + x1_min)
+            ry1 = int(random.random() * (x2_max - x2_min) + x2_min)
+            ry2 = int(random.random() * (x2_max - x2_min) + x2_min)
 
-rect_pts6 = np.array([[15, 0], 
-                    [12, 4.9],
-                    [12, 5],
-                    [14.9, 0]])
+        rxmin = min(rx1, rx2)
+        rxmax = max(rx1, rx2)
+        rymin = min(ry1, ry2)
+        rymax = max(ry1, ry2)
 
-rect_pts7 = np.array([[18, 12],
-                      [21, 12],
-                      [21, 11.9],
-                      [18, 11.9]])
+        rtl = [rxmin, rymax]
+        rtr = [rxmax, rymax]
+        rbl = [rxmin, rymin]
+        rbr = [rxmax, rymin]
 
-obs_rect1 = VPolytope(rect_pts1.T)
-obs_rect2 = VPolytope(rect_pts2.T)
-obs_rect3 = VPolytope(rect_pts3.T)
-obs_rect4 = VPolytope(rect_pts4.T)
-obs_rect5 = VPolytope(rect_pts5.T)
-obs_rect6 = VPolytope(rect_pts6.T)
-obs_rect7 = VPolytope(rect_pts7.T)
+        rectangle_pts = np.array([rbl, rbr, rtr, rtl])
+
+        obstacles.append(VPolytope(rectangle_pts.T))
+
+        rect_obs.append(VPolytope(rectangle_pts.T))
+
+    return obstacles, rect_obs
+
+obstacles = []
+num_rectangles = 4
+obstacles, rect_obs = build_rectangles(num_rectangles, obstacles)
+
+
+# V_polytope triangles
+def build_triangles(num_triangles, obstacles):
+    triangle_list = []
+
+    for tri_num in range(num_triangles):
+
+        rx1 = int(random.random() * (x1_max - x1_min) + x1_min)
+        rx2 = int(random.random() * (x1_max - x1_min) + x1_min)
+        rx3 = int(random.random() * (x1_max - x1_min) + x1_min)
+
+        ry1 = int(random.random() * (x2_max - x2_min) + x2_min)
+        ry2 = int(random.random() * (x2_max - x2_min) + x2_min)
+        ry3 = int(random.random() * (x2_max - x2_min) + x2_min)
+
+
+        while ((pymin(abs(rx1 - rx2), abs(rx1 - rx2), abs(rx2 - rx3)) <= 2) or 
+            (pymin(abs(ry1 - ry2), abs(ry1 - ry2), abs(ry2 - ry3)) <= 2) or 
+            (pymax(abs(rx1 - rx2), abs(rx1 - rx2), abs(rx2 - rx3)) > 5) or 
+            (pymax(abs(rx1 - rx2), abs(rx1 - rx2), abs(rx2 - rx3)) > 5) or
+            (pymin(rx1, rx2, rx3) < x1_min) or (pymax(rx1, rx2, rx3) > x1_max) or
+            (pymin(ry1, ry2, ry3) < x2_min) or (pymax(rx1, rx2, rx3) > x2_max) or
+            tri_intersects(rx1, rx2, rx3, ry1, ry2, ry3, obstacles)):
+               rx1 = int(random.random() * (x1_max - x1_min) + x1_min)
+               rx2 = int(random.random() * (x1_max - x1_min) + x1_min)
+               rx3 = int(random.random() * (x1_max - x1_min) + x1_min)
+               
+               ry1 = int(random.random() * (x2_max - x2_min) + x2_min)
+               ry2 = int(random.random() * (x2_max - x2_min) + x2_min)
+               ry3 = int(random.random() * (x2_max - x2_min) + x2_min)
+
+        pt1 = [rx1, ry1]
+        pt2 = [rx2, ry2]
+        pt3 = [rx3, ry3]
+
+        triangle_pts = np.array([pt1, pt2, pt3])
+
+        obstacles.append(VPolytope(triangle_pts.T))
+
+        triangle_list.append(VPolytope(triangle_pts.T))
+
+    return obstacles, triangle_list
+
+num_triangles = 4
+obstacles, tri_obs = build_triangles(num_triangles, obstacles)
+
+def build_ellipse(num_ellipses, obstacles):
+    
+    draw_ellipse_list = []
+    obs_ellipse_list = []
+
+    for e_num in range(num_ellipses):
+
+        center_x = int(random.random() * (x1_max - x1_min) + x1_min)
+        center_y = int(random.random() * (x2_max - x2_min) + x2_min)
+
+        ellipse_B = np.array([[1, 1], [0, 1.5]]) # pre-defined (for now)
+        ellipse_A = np.linalg.inv(ellipse_B)
+
+        ellipse_center = np.array([[center_x], [center_y]])
+
+        while ((center_x <= x1_min+2) or (center_x >= x1_max-2) or (center_y <= x2_min+2) 
+               or (center_y >= x2_max-2) or ell_intersects(obstacles, ellipse_A, ellipse_center)):
+            center_x = int(random.random() * (x1_max - x1_min) + x1_min)
+            center_y = int(random.random() * (x2_max - x2_min) + x2_min)
+
+            ellipse_center = np.array([[center_x], [center_y]])
+
+        draw_obs_ellipse = [ellipse_B, ellipse_center]
+        draw_ellipse_list.append(draw_obs_ellipse)
+
+        obs_ellipse_list.append(Hyperellipsoid(ellipse_A, ellipse_center))
+        obstacles.append(Hyperellipsoid(ellipse_A, ellipse_center))
+
+        return draw_ellipse_list, obs_ellipse_list, obstacles
+
+num_ellipses = 6
+
+draw_ell_obs, obs_ellipse_list, obstacles = build_ellipse(num_ellipses, obstacles)
 
 ###############################################################################################
 # DISTANCE HELPER FUNCTION
@@ -157,23 +294,27 @@ def distance(point1, point2):
 ###############################################################################################
 # IRIS ALGORITHM
 
-# list of all the obstalces
-obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, obs_rect7]
-
 # choose a sample intial point to do optimization from
 
 sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 90
+num_samples = 200
+
+def check_intersection(obstacles, sample_pt):
+
+    for ob in obstacles:
+        if ob.PointInSet(sample_pt) == True:
+            return True
+    
+    return False
+
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
 
-    while (obs_rect1.PointInSet(sample_pt) or obs_rect2.PointInSet(sample_pt) or obs_rect3.PointInSet(sample_pt) 
-    or obs_rect4.PointInSet(sample_pt) or obs_rect5.PointInSet(sample_pt) or obs_rect6.PointInSet(sample_pt) 
-    or obs_rect7.PointInSet(sample_pt)):
+    while check_intersection(obstacles, sample_pt) == True:
         sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
         
     sample_pts.append(sample_pt)
@@ -287,7 +428,18 @@ for hedron_idx in range(len(r_H_list)):
         if hedron != r_H_list[hedron_idx]:
             # check for intersection
             inters = hedron.Intersection(r_H_list[hedron_idx])  # this returns a polyhedron
-            inters_vpol = VPolytope(inters)
+            
+            if inters.IsEmpty():
+                continue
+
+            try:
+                inters_vpol = VPolytope(inters)
+
+            except RuntimeError as e:
+                print(f'Skipping interseciton due to error: {e}')
+                continue
+            
+            # inters_vpol = VPolytope(inters)
 
             inters_list.append(inters_vpol)
 
@@ -517,20 +669,20 @@ def in_polytope(node_coords):
 # NEED TO INTRODUCE CONSTRAINT THAT THE START AND GOAL AREN'T GENERATED IN FREESPACE BUT IN AN ACTUAL POLYTOPE
 t0_points = time.time()
 
-# start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
-# # start = [12.474357775465961, 2.939952153423444]
+# start = [12.474357775465961, 2.939952153423444]
 
-# while check_obstacle_collision(start, obstacles) == True or in_polytope(start) == False: # the start node intersects and obstacles
-#     start = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
+while check_obstacle_collision(start, obstacles) == True or in_polytope(start) == False: # the start node intersects and obstacles
+    start = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
-# goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
-# while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2) or in_polytope(goal) == False:
-#     goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
+while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2) or in_polytope(goal) == False:
+    goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
-start = [5, 15]
-goal = [5, 5]
+# start = [21, 6]
+# goal = [2, 16]
 
 # define the start and goal as nodes
 startnode = Node(None, start)
@@ -746,8 +898,8 @@ def run_planner(start, goal):
 
 path, t_plan = run_planner(startnode, goalnode)
 print('Did it work?')
-###############################################################################################
 
+###############################################################################################
 # PLOTTING
 plt.figure()
 
@@ -755,36 +907,26 @@ plt.figure()
 domain_V = VPolytope(domain)
 domain_pts = domain_V.vertices()
 domain_pts = reorder_verts_2D(domain_pts)
-plt.fill(domain_pts[0, :], domain_pts[1, :], 'white')
+plt.fill(domain_pts[0, :], domain_pts[1, :], 'gray')
 
-# plot the obstacles (the walls)
-obs_rect1_pts = obs_rect1.vertices()
-obs_rect1_pts = reorder_verts_2D(obs_rect1_pts)
-plt.fill(obs_rect1_pts[0, :], obs_rect1_pts[1, :], 'r')
 
-obs_rect2_pts = obs_rect2.vertices()
-obs_rect2_pts = reorder_verts_2D(obs_rect2_pts)
-plt.fill(obs_rect2_pts[0, :], obs_rect2_pts[1, :], 'r')
+# plot the rectangles
+for rec in rect_obs:
+    obs_rect_pts = rec.vertices()
+    obs_rect_pts = reorder_verts_2D(obs_rect_pts)
+    plt.fill(obs_rect_pts[0, :], obs_rect_pts[1, :], 'r')
 
-obs_rect3_pts = obs_rect3.vertices()
-obs_rect3_pts = reorder_verts_2D(obs_rect3_pts)
-plt.fill(obs_rect3_pts[0, :], obs_rect3_pts[1, :], 'r')
+# plot the triangles
+for tri in tri_obs:
+    obs_tri_pts = tri.vertices()
+    obs_tri_pts = reorder_verts_2D(obs_tri_pts)
+    plt.fill(obs_tri_pts[0, :], obs_tri_pts[1, :], 'r')
 
-obs_rect4_pts = obs_rect4.vertices()
-obs_rect4_pts = reorder_verts_2D(obs_rect4_pts)
-plt.fill(obs_rect4_pts[0, :], obs_rect4_pts[1, :], 'r')
 
-obs_rect5_pts = obs_rect5.vertices()
-obs_rect5_pts = reorder_verts_2D(obs_rect5_pts)
-plt.fill(obs_rect5_pts[0, :], obs_rect5_pts[1, :], 'r')
-
-obs_rect6_pts = obs_rect6.vertices()
-obs_rect6_pts = reorder_verts_2D(obs_rect6_pts)
-plt.fill(obs_rect6_pts[0, :], obs_rect6_pts[1, :], 'r')
-
-obs_rect7_pts = obs_rect7.vertices()
-obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
-plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
+# plot the ellipses
+for el in draw_ell_obs:
+    obs_ellipse_pts = get_ellipse_pts_2D(el[0], el[1])
+    plt.fill(obs_ellipse_pts[0, :], obs_ellipse_pts[1, :], 'r')
 
 # for pt in mega_coords:
 #     plt.plot(pt[0], pt[1], 'bo')
@@ -807,7 +949,7 @@ for group_verts in vertex_list:
     group_verts = reorder_verts_2D(group_verts)
     # print('The points')
     # print(group_verts[0, :], group_verts[1, :])
-    # plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
+    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
     plt.fill(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))])
     idx += 1
 

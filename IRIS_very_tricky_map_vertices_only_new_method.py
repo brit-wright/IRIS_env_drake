@@ -1,32 +1,10 @@
-#!/usr/bin/env python3.10
+#!/usr/bin/env python3.8
 import numpy as np
 import matplotlib.pyplot as plt
-
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
-from math import sqrt, inf
-
-import shapely
-
-import random
-
-from pydrake.all import *
-
-import bisect
-
 import time
-###############################################################################################
-# Create a seed
-# seed = int(random.random()*10000)
-# seed = 2040
-# random.seed(seed)
-# print(f"{seed=}")
+from pydrake.all import *
+import bisect
+from math import sqrt, inf
 ###############################################################################################
 # helper functions
 
@@ -98,50 +76,77 @@ domain_b = np.array([[x1_max],
                               [-x2_min]])
 domain = HPolyhedron(domain_A, domain_b)
 
+# V_polytope triangles
+tri_pts1 = np.array([[1,16],
+                     [4,18],
+                     [6,12]])
 
-# V_polytope rectangles
-rect_pts1 = np.array([[0, 10],
-                     [15, 10],
-                     [15, 9.9],
-                     [0, 9.9]])
+tri_pts2 = np.array([[3,6],
+                     [8,10],
+                     [8,14]])
 
-rect_pts2 = np.array([[18, 10],
-                     [30, 10],
-                     [30, 9.9],
-                     [18, 9.9]])
+tri_pts3 = np.array([[3,2],
+                     [6,4],
+                     [6,8]])
 
-rect_pts3 = np.array([[15, 20],
-                      [15, 12],
-                      [14.9, 12],
-                      [14.9, 20]])
+tri_pts4 = np.array([[7,4],
+                     [11,6],
+                     [12,2]])
 
-rect_pts4 = np.array([[12, 12],
-                      [15, 12],
-                      [15, 11.9],
-                      [12, 11.9]])
+tri_pts5 = np.array([[8,12],
+                     [12,12],
+                     [14,4]])
 
-rect_pts5 = np.array([[15, 10],
-                      [15, 5],
-                      [14.9, 5],
-                      [14.9, 10]])
+tri_pts6 = np.array([[6,18],
+                     [11,14],
+                     [14,19]])
 
-rect_pts6 = np.array([[15, 0], 
-                    [12, 4.9],
-                    [12, 5],
-                    [14.9, 0]])
+tri_pts7 = np.array([[13,12],
+                     [13,18],
+                     [17,18]])
 
-rect_pts7 = np.array([[18, 12],
-                      [21, 12],
-                      [21, 11.9],
-                      [18, 11.9]])
+tri_pts8 = np.array([[14,6],
+                     [16,2],
+                     [16,12]])
 
-obs_rect1 = VPolytope(rect_pts1.T)
-obs_rect2 = VPolytope(rect_pts2.T)
-obs_rect3 = VPolytope(rect_pts3.T)
-obs_rect4 = VPolytope(rect_pts4.T)
-obs_rect5 = VPolytope(rect_pts5.T)
-obs_rect6 = VPolytope(rect_pts6.T)
-obs_rect7 = VPolytope(rect_pts7.T)
+tri_pts9 = np.array([[17,8],
+                     [19,8],
+                     [19,18]])
+
+tri_pts10 = np.array([[16,2],
+                     [21,6],
+                     [22,16]])
+
+tri_pts11 = np.array([[21,18],
+                     [28,18],
+                     [29,14]])
+
+tri_pts12 = np.array([[22,5],
+                     [25,10],
+                     [25,15]])
+
+tri_pts13 = np.array([[20,2],
+                     [25,6],
+                     [26,2]])
+
+tri_pts14 = np.array([[26,6],
+                     [28,2],
+                     [28,14]])
+
+obs_tri1 = VPolytope(tri_pts1.T)
+obs_tri2 = VPolytope(tri_pts2.T)
+obs_tri3 = VPolytope(tri_pts3.T)
+obs_tri4 = VPolytope(tri_pts4.T)
+obs_tri5 = VPolytope(tri_pts5.T)
+obs_tri6 = VPolytope(tri_pts6.T)
+obs_tri7 = VPolytope(tri_pts7.T)
+obs_tri8 = VPolytope(tri_pts8.T)
+obs_tri9 = VPolytope(tri_pts9.T)
+obs_tri10 = VPolytope(tri_pts10.T)
+obs_tri11 = VPolytope(tri_pts11.T)
+obs_tri12 = VPolytope(tri_pts12.T)
+obs_tri13 = VPolytope(tri_pts13.T)
+obs_tri14 = VPolytope(tri_pts14.T)
 
 ###############################################################################################
 # DISTANCE HELPER FUNCTION
@@ -153,12 +158,13 @@ def distance(point1, point2):
 
     distance = sqrt((x1 - x2)**2 + (y1 - y2)**2) 
     return distance
-
 ###############################################################################################
 # IRIS ALGORITHM
 
 # list of all the obstalces
-obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, obs_rect7]
+obstacles = [obs_tri1, obs_tri2, obs_tri3, obs_tri4, obs_tri5, 
+             obs_tri6, obs_tri7, obs_tri8, obs_tri9, obs_tri10, 
+             obs_tri11, obs_tri12, obs_tri13, obs_tri14]
 
 # choose a sample intial point to do optimization from
 
@@ -166,17 +172,21 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 90
+num_samples = 100
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
 
-    while (obs_rect1.PointInSet(sample_pt) or obs_rect2.PointInSet(sample_pt) or obs_rect3.PointInSet(sample_pt) 
-    or obs_rect4.PointInSet(sample_pt) or obs_rect5.PointInSet(sample_pt) or obs_rect6.PointInSet(sample_pt) 
-    or obs_rect7.PointInSet(sample_pt)):
+    while (obs_tri1.PointInSet(sample_pt) or obs_tri2.PointInSet(sample_pt) or obs_tri3.PointInSet(sample_pt) or
+           obs_tri4.PointInSet(sample_pt) or obs_tri5.PointInSet(sample_pt) or obs_tri6.PointInSet(sample_pt) or 
+           obs_tri7.PointInSet(sample_pt) or obs_tri8.PointInSet(sample_pt) or obs_tri9.PointInSet(sample_pt) or 
+           obs_tri10.PointInSet(sample_pt) or obs_tri11.PointInSet(sample_pt) or obs_tri12.PointInSet(sample_pt) or 
+           obs_tri13.PointInSet(sample_pt) or obs_tri14.PointInSet(sample_pt)):
         sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
         
     sample_pts.append(sample_pt)
+
+# sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
 
 # iris options
 options = IrisOptions()
@@ -517,20 +527,20 @@ def in_polytope(node_coords):
 # NEED TO INTRODUCE CONSTRAINT THAT THE START AND GOAL AREN'T GENERATED IN FREESPACE BUT IN AN ACTUAL POLYTOPE
 t0_points = time.time()
 
-# start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+start = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
-# # start = [12.474357775465961, 2.939952153423444]
+# start = [12.474357775465961, 2.939952153423444]
 
-# while check_obstacle_collision(start, obstacles) == True or in_polytope(start) == False: # the start node intersects and obstacles
-#     start = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
+while check_obstacle_collision(start, obstacles) == True or in_polytope(start) == False: # the start node intersects and obstacles
+    start = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
-# goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
+goal = [np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)]
 
-# while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2) or in_polytope(goal) == False:
-#     goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
+while (goal == start) or (check_obstacle_collision(goal, obstacles) == True) or (distance(start, goal) < (x1_max - x1_min)/2) or in_polytope(goal) == False:
+    goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
-start = [5, 15]
-goal = [5, 5]
+# start = [21, 6]
+# goal = [2, 16]
 
 # define the start and goal as nodes
 startnode = Node(None, start)
@@ -746,8 +756,8 @@ def run_planner(start, goal):
 
 path, t_plan = run_planner(startnode, goalnode)
 print('Did it work?')
-###############################################################################################
 
+###############################################################################################
 # PLOTTING
 plt.figure()
 
@@ -757,34 +767,63 @@ domain_pts = domain_V.vertices()
 domain_pts = reorder_verts_2D(domain_pts)
 plt.fill(domain_pts[0, :], domain_pts[1, :], 'white')
 
+
 # plot the obstacles (the walls)
-obs_rect1_pts = obs_rect1.vertices()
-obs_rect1_pts = reorder_verts_2D(obs_rect1_pts)
-plt.fill(obs_rect1_pts[0, :], obs_rect1_pts[1, :], 'r')
+obs_tri1_pts = obs_tri1.vertices()
+obs_tri1_pts = reorder_verts_2D(obs_tri1_pts)
+plt.fill(obs_tri1_pts[0, :], obs_tri1_pts[1, :], 'r')
 
-obs_rect2_pts = obs_rect2.vertices()
-obs_rect2_pts = reorder_verts_2D(obs_rect2_pts)
-plt.fill(obs_rect2_pts[0, :], obs_rect2_pts[1, :], 'r')
+obs_tri2_pts = obs_tri2.vertices()
+obs_tri2_pts = reorder_verts_2D(obs_tri2_pts)
+plt.fill(obs_tri2_pts[0, :], obs_tri2_pts[1, :], 'r')
 
-obs_rect3_pts = obs_rect3.vertices()
-obs_rect3_pts = reorder_verts_2D(obs_rect3_pts)
-plt.fill(obs_rect3_pts[0, :], obs_rect3_pts[1, :], 'r')
+obs_tri3_pts = obs_tri3.vertices()
+obs_tri3_pts = reorder_verts_2D(obs_tri3_pts)
+plt.fill(obs_tri3_pts[0, :], obs_tri3_pts[1, :], 'r')
 
-obs_rect4_pts = obs_rect4.vertices()
-obs_rect4_pts = reorder_verts_2D(obs_rect4_pts)
-plt.fill(obs_rect4_pts[0, :], obs_rect4_pts[1, :], 'r')
+obs_tri4_pts = obs_tri4.vertices()
+obs_tri4_pts = reorder_verts_2D(obs_tri4_pts)
+plt.fill(obs_tri4_pts[0, :], obs_tri4_pts[1, :], 'r')
 
-obs_rect5_pts = obs_rect5.vertices()
-obs_rect5_pts = reorder_verts_2D(obs_rect5_pts)
-plt.fill(obs_rect5_pts[0, :], obs_rect5_pts[1, :], 'r')
+obs_tri5_pts = obs_tri5.vertices()
+obs_tri5_pts = reorder_verts_2D(obs_tri5_pts)
+plt.fill(obs_tri5_pts[0, :], obs_tri5_pts[1, :], 'r')
 
-obs_rect6_pts = obs_rect6.vertices()
-obs_rect6_pts = reorder_verts_2D(obs_rect6_pts)
-plt.fill(obs_rect6_pts[0, :], obs_rect6_pts[1, :], 'r')
+obs_tri6_pts = obs_tri6.vertices()
+obs_tri6_pts = reorder_verts_2D(obs_tri6_pts)
+plt.fill(obs_tri6_pts[0, :], obs_tri6_pts[1, :], 'r')
 
-obs_rect7_pts = obs_rect7.vertices()
-obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
-plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
+obs_tri7_pts = obs_tri7.vertices()
+obs_tri7_pts = reorder_verts_2D(obs_tri7_pts)
+plt.fill(obs_tri7_pts[0, :], obs_tri7_pts[1, :], 'r')
+
+obs_tri8_pts = obs_tri8.vertices()
+obs_tri8_pts = reorder_verts_2D(obs_tri8_pts)
+plt.fill(obs_tri8_pts[0, :], obs_tri8_pts[1, :], 'r')
+
+obs_tri9_pts = obs_tri9.vertices()
+obs_tri9_pts = reorder_verts_2D(obs_tri9_pts)
+plt.fill(obs_tri9_pts[0, :], obs_tri9_pts[1, :], 'r')
+
+obs_tri10_pts = obs_tri10.vertices()
+obs_tri10_pts = reorder_verts_2D(obs_tri10_pts)
+plt.fill(obs_tri10_pts[0, :], obs_tri10_pts[1, :], 'r')
+
+obs_tri11_pts = obs_tri11.vertices()
+obs_tri11_pts = reorder_verts_2D(obs_tri11_pts)
+plt.fill(obs_tri11_pts[0, :], obs_tri11_pts[1, :], 'r')
+
+obs_tri12_pts = obs_tri12.vertices()
+obs_tri12_pts = reorder_verts_2D(obs_tri12_pts)
+plt.fill(obs_tri12_pts[0, :], obs_tri12_pts[1, :], 'r')
+
+obs_tri13_pts = obs_tri13.vertices()
+obs_tri13_pts = reorder_verts_2D(obs_tri13_pts)
+plt.fill(obs_tri13_pts[0, :], obs_tri13_pts[1, :], 'r')
+
+obs_tri14_pts = obs_tri14.vertices()
+obs_tri14_pts = reorder_verts_2D(obs_tri14_pts)
+plt.fill(obs_tri14_pts[0, :], obs_tri14_pts[1, :], 'r')
 
 # for pt in mega_coords:
 #     plt.plot(pt[0], pt[1], 'bo')
@@ -807,7 +846,7 @@ for group_verts in vertex_list:
     group_verts = reorder_verts_2D(group_verts)
     # print('The points')
     # print(group_verts[0, :], group_verts[1, :])
-    # plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
+    plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
     plt.fill(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))])
     idx += 1
 

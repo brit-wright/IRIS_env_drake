@@ -2,14 +2,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
 from math import sqrt, inf, pi, sin, cos, atan2, ceil
 from scipy.spatial      import KDTree
 from shapely.geometry   import Point, LineString, Polygon, MultiPolygon, MultiLineString
