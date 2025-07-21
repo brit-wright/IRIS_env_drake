@@ -1,5 +1,6 @@
 import torch
 from pydrake.all import *
+import time
 device = torch.device('cpu')
 
 x1_min = 0
@@ -76,11 +77,40 @@ A_stack_T = A_stack.transpose(1, 2)
 
 def inFreespace(next_node):
         
+        # start_tens = start_tens.unsqueeze(0).expand(len(obstacles), len(starts), 2) # shape is (7, 4, 2)
+
+        # need to expand next_node so that it has the correct shape
+        
+
+        # print(len(next_node))
+
+        # print(f'Shape of tensor is: {next_node.shape}')
+        # print(f'Shape of A_stack_T is: {A_stack_T.shape}')
+
+        
         # check that the next point is in-bounds
 
         # returns False if any condition fails and True if all conditions pass
+
+        # individual checks
+        # print(next_node[:, 0])
+        # print(next_node[:, 1])
+
+        # print(next_node[:,0] >= x1_min)
+        # print(next_node[:,0] <= x1_max)
+        # print(next_node[:,1] >= x2_min)
+        # print(next_node[:,1] <= x2_max)
+
         in_bounds_mask = ((next_node[:,0] >= x1_min) & (next_node[:,0] <= x1_max)) & ((next_node[:,1] >= x2_min) & (next_node[:,1] <= x2_max))
 
+        next_node = next_node.unsqueeze(0).expand(len(obstacles), len(next_node), 2)
+
+        # print(len(next_node))
+
+        # print(f'Shape of tensor is: {next_node.shape}')
+        # print(f'Shape of A_stack_T is: {A_stack_T.shape}')
+       
+       
         # The A_stack_T variable has already been pre-calculated so I can just to the batch matrix multiplication here
         prod = torch.bmm(next_node, A_stack_T)
 
@@ -92,121 +122,265 @@ def inFreespace(next_node):
 
         return final_mask
 
-# from there we should discretize the line and look for intersections
 
-# PERFORMING INTERPOLATION BETWEEN TWO POINTS
 
-def check_obstacle_collision(coord, obstacles):
+# def check_interpolation(tens_start, tens_goal):
+
+#     # Here we take in the tensors defining the start and goal points for each RRT
+#     # We start by doing an initial check to see which pairs of start-goal entries have the same x-value (vertical line check)
+
+#     vertical_mask = tens_start[:, 0] == tens_goal[:, 0]
+
+#     indices = np.arange(len(tens_start))
+
+#     vertical_indices = indices[vertical_mask]
+#     non_vertical_indices = indices[~vertical_mask]
+
+#     num_divisions = 5
+
+#     start_non_vert = tens_start[~vertical_mask]
+#     goal_non_vert = tens_goal[~vertical_mask]
+
+#     x_divs = torch.linspace(0, 1, steps=num_divisions, device=device).view(-1, 1)
+
+#     x_vals_non_vert = start_non_vert[:, 0] + (goal_non_vert[:, 0] - start_non_vert[:, 0]) * x_divs
+
+#     # check if we can calculate the y_values using the same method
+#     y_vals_non_vert = start_non_vert[:, 1] + (goal_non_vert[:, 1] - start_non_vert[:, 1]) * x_divs
+
+#     # checked with a plot and they look good. send them over to the interpolator
+#     connects_non_vert = torch.ones(len(start_non_vert), dtype=torch.bool, device=device)
     
-    for v_pol in obstacles:
-        # do an early check for whether the point intersects
-        if v_pol.PointInSet(coord) == True:
-            return True
-    return False
-            
-def create_coords(x1, y1, x2, y2):
-    coord_list = []
-    # create coords using linear interpolation
+#     for b in range(num_divisions):
 
-    # check that the lines isn't parallel and apply the linear
-    # interpolation formula
+#         new = torch.tensor([[x_vals_non_vert[b][a], y_vals_non_vert[b][a]] for a in range(len(start_non_vert))], dtype=torch.float, device=device)
+        
+#         result = inFreespace(new)
 
-    xmin = min(x1, x2)
-    xmax = max(x1, x2)
+#         connects_non_vert = connects_non_vert & result
 
-    if x1 == xmin:
-        y_xmin = y1
-        y_xmax = y2
-    else:
-        y_xmin = y2
-        y_xmax = y1
+#     # find the corresponding y-values by doing the same interpolation
 
-    if x1 != x2:
+#     start_vert = tens_start[vertical_mask]
+#     goal_vert = tens_goal[vertical_mask]
 
-        for x_point in np.arange(xmin, xmax, 0.01):
-            y_point = y_xmin + (y_xmax - y_xmin)/(xmax - xmin) * (x_point - xmin)
-            coord_list.append((float(x_point), float(y_point)))
+#     # update 2: using num_divisions instead of step_size
+    
+#     # start by choosing the divisions?
+#     y_divs = torch.linspace(0, 1, steps=num_divisions, device=device).view(-1, 1)
+    
+#     # apply these divisions to the linear interpolation between the y_start and y_goal
 
-    else:
+#     y_vals_vert = start_vert[:, 1] + (goal_vert[:, 1] - start_vert[:, 1]) * y_divs
 
-        y_min = min(y1, y2)
-        y_max = max(y1, y2)
+#     # define x_vals_vert based on this new definition
+#     x_vals_vert = [torch.tensor(start_vert[:, 0]).unsqueeze(0).expand(num_divisions, len(start_vert))]
 
-        for y_point in np.arange(y_min, y_max, 0.01):
-            coord_list.append((x1, float(y_point)))
-    # print(coord_list)
-    return coord_list
+#     # next we do the freespace test on these pairs of x and y values
 
-# For connecting intersection polytopes using chebyshev centers
-
-# returns true if the points can connect without intersection
-def check_interpolation(pair, obstacles):
-
-    x1, y1 = pair[0][0], pair[0][1]
-    x2, y2 = pair[1][0], pair[1][1]
-
-    coord_checks = create_coords(x1, y1, x2, y2)
-
-    obstacle_vertex_list = []
-    for opp in obstacles:
-        obstacle_vertex_list.append(opp.vertices())
-
-    for coord in coord_checks:
-
-        coord = [[coord[0]], [coord[1]]]  
-
-        is_a_vertex = False
+#     connects_vert = torch.ones(len(start_vert), dtype=torch.bool, device=device)
 
 
-        # check whether the current coordinate is a vertex
-        for obs_vertex in obstacle_vertex_list:
+#     x_vals_vert = x_vals_vert[0]
 
-            for ob_index in range(len(obs_vertex[0])):
+#     for b in range(num_divisions):
 
-                if coord == [obs_vertex[0][ob_index], obs_vertex[1][ob_index]]:
+#         new = torch.tensor([[x_vals_vert[b][a], y_vals_vert[b][a]] for a in range(len(start_vert))], dtype=torch.float, device=device)
+        
+#         result = inFreespace(new)
 
-                    is_a_vertex = True
+#         connects_vert = connects_vert & result
 
-        if is_a_vertex == False:
+#     # next we need to re-combine based on the indices that are and aren't vertical
+#     connects_to_result = torch.zeros(len(indices), dtype=torch.bool, device=device)
 
-            interpolation_intersects = check_obstacle_collision(coord, obstacles)
+#     connects_to_result[vertical_indices] = connects_vert
+#     connects_to_result[non_vertical_indices] = connects_non_vert
 
-            if interpolation_intersects == True:
-
-                return False
-
-    return True
+#     return connects_to_result
 
 
 
-def get_coords(tens_start, tens_goal):
+def check_interpolation(tens_start, tens_goal):
 
-    # do a mask to check for whether the line is vertical
-    # act accordingly
+    # OPTIMIZING THIS
+
+    t_connectsto_start = time.time()
+    counting_infreespace = 0
+    timing_infreespace = 0
+
+    num_divisions = 200
+    divs = torch.linspace(0, 1, steps=num_divisions, device=device).view(-1, 1)
+
+    # Here we take in the tensors defining the start and goal points for each RRT
+    # We start by doing an initial check to see which pairs of start-goal entries have the same x-value (vertical line check)
+
+    vertical_mask = tens_start[:, 0] == tens_goal[:, 0]
+    non_vertical_mask = ~vertical_mask
+
+    
+    # FOR THE NON-VERTICAL LINES
+    start_non_vert = tens_start[non_vertical_mask]
+    goal_non_vert = tens_goal[non_vertical_mask]
+
+    # get the x and y values for the non-vertical case
+    x_vals_non_vert = (start_non_vert[:, 0]).unsqueeze(0) + (goal_non_vert[:, 0] - start_non_vert[:, 0]).unsqueeze(0) * divs
+
+    # check if we can calculate the y_values using the same method
+    y_vals_non_vert = (start_non_vert[:, 1]).unsqueeze(0) + (goal_non_vert[:, 1] - start_non_vert[:, 1]).unsqueeze(0) * divs
+
+    
+    # collect all the test points
+    new_non_vert = torch.stack([x_vals_non_vert, y_vals_non_vert], dim=2).reshape(-1, 2)
+
+    # call inFreespace
+    result_non_vert = inFreespace(new_non_vert)
+
+    # re-shape the result
+    result_non_vert = result_non_vert.view(num_divisions, -1)
+
+    # define the mask
+    connects_non_vert = result_non_vert.all(dim=0)
+
+    # FOR THE VERTICAL LINES
+    start_vert = tens_start[vertical_mask]
+    goal_vert = tens_goal[vertical_mask]
+
+    y_vals_vert = (start_vert[:, 1]).unsqueeze(0) + (goal_vert[:, 1] - start_vert[:, 1]).unsqueeze(0) * divs
+    x_vals_vert = start_vert[:, 0].unsqueeze(0).expand(num_divisions, -1)
+    
+    new_vert = torch.stack([x_vals_vert, y_vals_vert], dim=2).reshape(-1, 2)
+
+    result_vert = inFreespace(new_vert)
+
+    result_vert = result_vert.view(num_divisions, -1)
+
+    connects_vert = result_vert.all(dim=0)
 
 
-    # then do the calculations for non-vertical lines by using the interpolation
-    # using the formula. It doesn't matter which x/y values are bigger as long as 
-    # you use the correct pair-wise description
+    # next we need to re-combine based on the indices that are and aren't vertical
+    connects_to_result = torch.zeros(len(tens_start), dtype=torch.bool, device=device)
 
-    pass
+    connects_to_result[vertical_mask] = connects_vert
+    connects_to_result[non_vertical_mask] = connects_non_vert
 
+    t_connectsto_end = time.time()
+    t_connectsto = t_connectsto_end - t_connectsto_start
+    # print(f'def connectsTo: {t_connectsto}')
 
-def check_interpolation(tstart, tgoal):
-
-    # start be getting the coordinates between each pairwise connection
-    coords = get_coords(tstart, tgoal)
-
+    return connects_to_result
 
 
 
 # define a random tensor with points to test the inFreespace claim
-starts = [[0, 0], [5, 8], [20, 7]]
-goals = [[5, 5], [5, 12], [25, 13]]
+starts = [[0, 0], [5, 8], [20, 7], [4, 9], [21, 5], [12, 7]]
+goals = [[5, 5], [5, 12], [25, 13], [4, 10], [23, 5], [18, 7]]
+
+# Expected result: True, False, False, False, True, False
 
 start_tens = torch.tensor(starts, dtype=torch.float, device=device)
 goal_tens = torch.tensor(goals, dtype=torch.float, device=device)
 
 mask = check_interpolation(start_tens, goal_tens)
 
+print(f'The mask is: {mask}')
+
+
+
+
+
+
+
+
+
 # how to do the parallelization?
+
+"""
+
+HERE ARE ALL THE OLD COMMENTS
+
+"""
+    # for the pairs that have a non-vertical mask, we want to collect the points for linear interpolation
+    # step_s = 0.01
+    # start_not_vert = tens_start[~vertical_mask]
+    # goal_not_vert = tens_goal[~vertical_mask]
+
+    # num_steps = np.ceil(np.abs(start_not_vert[:, 0] - goal_not_vert[:, 0])/step_s)
+    # num_steps = num_steps.type(torch.int64)
+
+    # # this section is lowkey not vectorized. can't be vectorized :\
+
+    # # next we get the x-values by calling np.linspace
+    # x_vals = [np.linspace(xstart, xgoal, steps) for xstart, xgoal, steps in zip(start_not_vert[:,0], goal_not_vert[:,0], num_steps)]
+
+    # # get the corresponding y_values by using the linear interpolation equation
+    # y_vals = [(ymin + (ymax - ymin)/(xmax - xmin) * (xval - xmin)) for (xmin, ymin), (xmax, ymax), xval in zip(start_not_vert, goal_not_vert, x_vals)]
+
+
+    # # now that we've assembled the x and y values, we can call inFreespace on each x-y pair
+    # print('XVALS')
+    # print(x_vals)
+
+    # print('YVALS')
+    # print(y_vals)
+
+    # print(len(x_vals[0]))
+
+    # # inFreespace works by taking in a tensor and for that tensor, checking if any of the points fails the
+    # # check
+
+    # # how to define the tensor that gets sent over --> We can define the tensor as one x-y pair in the group
+
+    # # we can define each tensor pair by looping through the list
+
+    # # we want to perform the loop such that we're defining the tensor to be an x-y value pair for each entry
+
+    # inner = num_steps[0]
+    # outer = len(x_vals)
+
+    # # wanna update such that each tensor has the form torch.tensor([x_vals[a][b], y_vals[a][b]] for a in outer)
+
+    # # wanna define an initial connects mask, where we assume the values to be true
+    # connects = torch.ones(len(start_not_vert), dtype=torch.bool, device=device)
+    
+    # # slight issue for definition of new
+    # """
+    # it's defining the nodes like this 
+    # tensor([[x1, y1] ,[x2, y2]])
+
+    # but when it sends over to inFreespace, this causes
+    # nextnode[:, 0] = [x1, y1] and nextnode[:, 1] == [x2, y2]
+    # """
+    
+    
+    # for b in range(inner):
+
+    #     new = torch.tensor([[x_vals[a][b], y_vals[a][b]] for a in range(outer)], dtype=torch.float, device=device)
+    #     print(new)
+
+    #     # from here, we wanna send the tensor over to inFreespace so that the necessary checks can be done there
+    #     # result is True if the point is valid and False if the point is invalid
+    #     result = inFreespace(new)
+
+    #     # the raw result of result is a 7 by 2 tensor, where 7 is the number of obstacles and 2 is the number of points
+    #     # that are non-vertical. So basically each entry says that for the nth obstacle and for the ith non-vertical point
+    #     # the test point is or is not in freespace
+
+    #     # we can further alter the result by saying that we wanna check for all in terms of the obstacles like so:
+    #     # result2 = result.all(dim=0)
+
+    #     print(f'result1: {result}')
+    #     # print(f'result2: {result2}')
+
+    #     connects = connects & result
+
+    # print(f'Final Answer is ver 1: {connects}')
+
+
+    # NEXT, WE NEED TO WORK ON THE CASE WITH VERTICAL LINES :)
+
+
+    # altering so instead I just need to select a certain number of divisions (should make the tensorizing process easier)
+
+    
+    # changing the non-vertical line check so that it also does the new check with num_divs

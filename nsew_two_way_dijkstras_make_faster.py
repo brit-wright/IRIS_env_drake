@@ -2,14 +2,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
-from pydrake.all import *#!/usr/bin/env python3.8
-import numpy as np
-import matplotlib.pyplot as plt
-
 from math import sqrt, inf, pi, sin, cos, atan2, ceil
 from scipy.spatial      import KDTree
 from shapely.geometry   import Point, LineString, Polygon, MultiPolygon, MultiLineString
@@ -23,7 +15,7 @@ import time
 import torch
 
 
-STEP_SIZE = 0.4
+STEP_SIZE = 0.35
 NMAX = 5000
 SMAX = 5000
 
@@ -162,30 +154,6 @@ class Visualization:
 
         placeholder = True # I had nothing to put here :/
 
-        # Clear the current, or create a new figure
-        # plt.clf()
-
-        # Create new axes, enable the grid, and set the axis limits.
-        # plt.axes()
-        # plt.grid(True)
-        # plt.gca().axis('on')
-        # plt.gca().set_xlim(x1_min, x1_max)
-        # plt.gca().set_ylim(x2_min, x2_max)
-        # plt.gca().set_xticks(xlabels)
-        # plt.gca().set_yticks(ylabels)
-        # plt.gca().set_aspect('equal')
-
-        # Show
-        self.show()
-
-    def show(self, text = ''):
-        # Show the plot
-        plt.pause(0.001)
-
-    #     # If text is specified, print and wait for confirmation
-    #     if len(text)>0:
-    #         input(text + ' (hit return to continue)')
-
     def drawNode(self, node, *args, **kwargs):
         plt.plot(node.x, node.y, *args, **kwargs)
 
@@ -199,22 +167,12 @@ class Visualization:
 ###############################################################################################
 # RRT, AND COLLISION-CHECKING FUNCTIONS
 def inFreespace(next_node, starts, goals):
-
-    # print(f'Nextnode is: {next_node}')
-    # print(f'Starts is: {starts}')
-    
-    # start_equality_mask = ((next_node[:,0] == starts[:,0]) & (next_node[:,1] == starts[:,1])) | ((next_node[:,0] == goals[:,0]) & (next_node[:,1] == goals[:,1]))
+    t_freespace_start = time.time()
     
     start_equality_mask = torch.any(torch.all(next_node[:,None,:] == starts[None,:,:], dim=2), dim=1)
 
     goal_equality_mask = torch.any(torch.all(next_node[:,None,:] == goals[None,:,:], dim=2), dim=1)
 
-    # print(f'Start equality mask: {start_equality_mask}')
-    # print(f'Goal equality mask is: {goal_equality_mask}')
-
-    # check that the next point is in-bounds
-
-    # returns False if any condition fails and True if all conditions pass
     in_bounds_mask = ((next_node[:,0] >= x1_min) & (next_node[:,0] <= x1_max)) & ((next_node[:,1] >= x2_min) & (next_node[:,1] <= x2_max))
 
     # need to change the size of next_node to make it compatible for batch-processing
@@ -229,9 +187,12 @@ def inFreespace(next_node, starts, goals):
 
     final_mask = (in_bounds_mask & ~mask3) | start_equality_mask | goal_equality_mask
 
-    # print(f'Final Mask looks like this: {final_mask}')
+    t_freespace_end = time.time()
+    t_freespace = t_freespace_end - t_freespace_start
+    # print(f'def inFreespace: {t_freespace}')
 
-    return final_mask
+    return final_mask, t_freespace
+
 
 def connectsTo(tens_start, tens_goal, starts, goals):
 
@@ -266,7 +227,7 @@ def connectsTo(tens_start, tens_goal, starts, goals):
     new_non_vert = torch.stack([x_vals_non_vert, y_vals_non_vert], dim=2).reshape(-1, 2)
 
     # call inFreespace
-    result_non_vert = inFreespace(new_non_vert, starts, goals)
+    result_non_vert, timed = inFreespace(new_non_vert, starts, goals)
 
     # re-shape the result
     result_non_vert = result_non_vert.view(num_divisions, -1)
@@ -283,7 +244,7 @@ def connectsTo(tens_start, tens_goal, starts, goals):
     
     new_vert = torch.stack([x_vals_vert, y_vals_vert], dim=2).reshape(-1, 2)
 
-    result_vert = inFreespace(new_vert, starts, goals)
+    result_vert, timed = inFreespace(new_vert, starts, goals)
 
     result_vert = result_vert.view(num_divisions, -1)
 
@@ -300,11 +261,10 @@ def connectsTo(tens_start, tens_goal, starts, goals):
     t_connectsto = t_connectsto_end - t_connectsto_start
     # print(f'def connectsTo: {t_connectsto}')
 
-    return connects_to_result
-
+    return connects_to_result, t_connectsto
 
 # RUN RRT IN GPU (CPU for now)
-def do_rrt(start_r, goal_r, visual):
+def do_rrt(start_r, goal_r):
     t_begin_rrt = time.time()
     stuck_counter = 0
     device = torch.device('cpu')
@@ -312,7 +272,11 @@ def do_rrt(start_r, goal_r, visual):
     goals = torch.tensor(goal_r, dtype=torch.float, device=device)
 
     batch_size = len(start_r)
-
+    
+    count_infreespace = 0
+    time_infreespace = 0
+    count_connects_to = 0
+    time_connects_to = 0
 
     # checking the RRT freespace definition
     ans = inFreespace(starts, starts, goals)
@@ -337,7 +301,7 @@ def do_rrt(start_r, goal_r, visual):
 
     iter = 0
 
-    def addtotree(valid_nearnodes, valid_batches, valid_nextnodes, nearest_indices, visual):
+    def addtotree(valid_batches, valid_nextnodes, nearest_indices):
         # start by assigning the parent of the new_node to be the nearnode
         tree_parents[valid_batches, node_counts[valid_batches]] = nearest_indices
 
@@ -348,22 +312,6 @@ def do_rrt(start_r, goal_r, visual):
         next_node_index = node_counts[valid_batches]
         node_counts[valid_batches] += 1
         step_counts[valid_batches] += 1
-
-        for b in range(valid_batches.shape[0]):
-
-
-            # def drawEdge(self, head, tail, *args, **kwargs):
-            #     plt.plot((head.coords[0], tail.coords[0]), (head.coords[1], tail.coords[1]), *args, **kwargs)
-
-
-            old_x, old_y = valid_nearnodes[b]
-            new_x, new_y = valid_nextnodes[b]
-
-            oldnode = Node(None, [old_x.item(), old_y.item()])
-            newnode = Node(None, [new_x.item(), new_y.item()])
-
-            visual.drawEdge(oldnode, newnode, color='g', linewidth=1)
-            visual.show()
         
     def addtogoal(goal_batches, goal_nodes):
 
@@ -377,7 +325,7 @@ def do_rrt(start_r, goal_r, visual):
 
     # GO INTO THE LOOP LOGIC #######################
     step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
-    p = 0.6
+    p = 0.4
 
     active_batches = torch.ones(batch_size, dtype=torch.bool, device=device)
     all_goal_batches = torch.tensor([], dtype=torch.long, device=device)
@@ -408,10 +356,6 @@ def do_rrt(start_r, goal_r, visual):
         # and assign it to targetnode
         targetnode = torch.clone(samples)
 
-        # this is going to throw an error. need to see why:
-        # print(f'targetnode is: {targetnode}')
-        # print(f'mask is: {mask}')
-        # print(f'goal is: {goals}')
 
         targetnode[mask] = goals[mask]
 
@@ -476,32 +420,16 @@ def do_rrt(start_r, goal_r, visual):
 
         # next we calculate the new x and y coordinates of the next node
         nextnode = nearnode + (STEP_SIZE/min_dist).unsqueeze(1) * diff[batch_indices, nearest_indices,:]
+        # print(f'Nextnode is: {nextnode}')
+        freespace_mask, timed_freespace = inFreespace(nextnode, starts, goals)
 
-        # Now that we have nextnode, we should then check the validity of next node by checking if it's in
-        # free space and if it connects
+        count_infreespace += 1
+        time_infreespace += timed_freespace
 
-        # first, check if the node is inFreespace()
-        # we first define the node to be checked based on its x and y positions
-        
-        # right now, nextnode contains the coordinates for each batch
-        # we can convert this tensor into a numpy array
+        connects_mask, timed_connects_to = connectsTo(nearnode, nextnode, starts, goals)
 
-        
-
-        # freespace_mask_cpu is a numpy array
-        # print('from rrt')
-        freespace_mask = inFreespace(nextnode, starts, goals)
-
-        # convert the numpy array to a tensor
-        
-
-        # next, we have to check if the nearnode connects to the nextnode
-        # we follow a similar procesure where we first convert the nearnode tensor into a numpy array
-        
-
-        # then we send the nearnode numpy array and the nextnode numpy array to the connectsTo function
-        connects_mask = connectsTo(nearnode, nextnode, starts, goals)
-
+        count_connects_to += 1
+        time_connects_to += timed_connects_to
     
 
         # next we need to combine the masks to see, for each batch, whether the node found is valid
@@ -520,7 +448,7 @@ def do_rrt(start_r, goal_r, visual):
         valid_nearest = nearest_indices[valid_batches]
 
         # call addtotree for only the valid batches and valid nodes
-        addtotree(nearnode[valid_batches], valid_batches, valid_nextnodes, valid_nearest, visual)
+        addtotree(valid_batches, valid_nextnodes, valid_nearest)
         
         if(iter % 500 == 0):
             print(f'Now at {iter} iterations')
@@ -528,6 +456,12 @@ def do_rrt(start_r, goal_r, visual):
             print(f'Step counts: {step_counts}')
             print(f'Active batches: {active_batches}')
             print(f'Stuck Counter: {stuck_counter}')
+
+            # print(f'Number of infreespace calls: {count_infreespace}')
+            # print(f'Average speed of infreespace calls: {time_infreespace/count_infreespace}')
+
+            # print(f'Number of connectsto calls: {count_connects_to}')
+            # print(f'Average speed of connectsto calls: {time_connects_to/count_connects_to}')
 
         if valid_nextnodes.shape[0] == 0:
             continue
@@ -547,21 +481,16 @@ def do_rrt(start_r, goal_r, visual):
         goal_diff = possible_goal - valid_nextnodes
         goal_distances = torch.norm(goal_diff, dim=1)
     
-        # Next we create a mesh to see whether the distance is within the step size
-        # print(f'Possible Goal: {possible_goal}')
-        # print(f'Valid Next Node: {valid_nextnodes}')
-        # print(f'Goal distances: {goal_distances}')
+
         within_threshold_mask = goal_distances < STEP_SIZE
 
         # Next we must create another mesh that tests whether the valid nextnode connects to the 
         # goalnode
-        goal_connects_mask = connectsTo(valid_nextnodes, possible_goal, starts, goals)
-        # compare both masks
-        # print('Check mask types')
-        # print(dist_mask.dtype)
-        # print(f'dist_mask: {dist_mask}')
-        # print(goal_connects_mask.dtype)
-        # print(f'goal connects mask: {goal_connects_mask}')
+        goal_connects_mask, timed_connects_to = connectsTo(valid_nextnodes, possible_goal, starts, goals)
+
+        count_connects_to += 1
+        time_connects_to += timed_connects_to
+
         valid_goal_connects_mask = within_threshold_mask & goal_connects_mask
 
         # get the batch indices where the goal can be added to the tree
@@ -569,36 +498,12 @@ def do_rrt(start_r, goal_r, visual):
         
         goal_nodes = goals[goal_batches]
         
-        # goal_indices = node_counts[goal_batches] - 1
-        # goal_parents = goal_indices - 1
-        
-        # goal_tree_index = valid_nearest[goal_batches] + 2
-        # add goal nodes to the tree
-        # goal_tree_index = next_node_index[goal_batches] + 1
 
         if goal_batches.numel()>0:
-            # print(f'Bruhhh: {goal_batches.numel()}')
             addtogoal(goal_batches, goal_nodes)
 
-        # Set the batch to inactive
-    
-        # the last thing is to check the following criterion for whether to stop a batch
-        # 1. The goal has been found
-        
-
-        # goal_found_mask = torch.zeros(batch_size, dtype=torch.bool, device=device)
-        # goal_found_mask[goal_batches] = True
-            
-        
-            # print('Issue might come up here!')
             active_batches[goal_batches] = False
-            # print(f'Goal found for batch: {goal_batches.tolist()} at Node: {node_counts[goal_batches]} and at Step: {step_counts[goal_batches]}')
-            # print(tree_positions[goal_batches])
-            # print(tree_parents[goal_batches])
             all_goal_batches = torch.cat([all_goal_batches, goal_batches])
-
-        # Increment the number of steps. Recall the following step tensor definition
-        # step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
 
         ###FIXME: MOVING THIS TEMPORARILY TO SEE IF THIS CHANGES ANYTHING
         # step_counts[active_batches] += 1
@@ -622,6 +527,7 @@ def do_rrt(start_r, goal_r, visual):
             seen_flag = True
             t_rrt = t_end_rrt - t_begin_rrt
             print(f'First path found in time: {t_rrt} seconds')
+            print(f'First path found at iteration: {iter}')
 
         if not active_batches.any():
             if (step_counts >= SMAX).all() | (node_counts >= NMAX).all():
@@ -632,6 +538,8 @@ def do_rrt(start_r, goal_r, visual):
             break
         
         if iter > 6000:
+            t_end_rrt = time.time()
+            t_rrt = t_end_rrt - t_begin_rrt
             break
 
     print(node_counts, step_counts)
@@ -646,7 +554,8 @@ def do_rrt(start_r, goal_r, visual):
     
     print(f'The start points were: {starts}')
     print(f'The goal points were: {goals}')
-    print(f'Number of paths found: {len(all_paths)}')
+    successful_paths = [p for p in all_paths if p != None]
+    print(f'Number of paths found: {len(successful_paths)}')
     # print(f'These are the paths: {all_paths}')
     return t_rrt, all_paths
 
@@ -1402,58 +1311,75 @@ if t_plan == -1:
     # find the node to node pairings
 
     def fail_inFreespace(pt):
-
+        t_fail_freespace_start = time.time()
         # inbounds check
         if (pt[0] < x1_min or pt[0] > x1_max or pt[1] < x2_min or pt[1] > x2_max):
-            return False
+            t_fail_freespace_end = time.time()
+            t_fail_freespace = t_fail_freespace_end - t_fail_freespace_start
+            return False, t_fail_freespace
 
         # FIXME: This freespace process might probs be pretty slow. See if you can make this faster
         for obstacle in obstacles:
             if obstacle.PointInSet(pt) == True:
-                return False
-            
-        return True
+                t_fail_freespace_end = time.time()
+                t_fail_freespace = t_fail_freespace_end - t_fail_freespace_start
+                return False, t_fail_freespace
+        
+        t_fail_freespace_end = time.time()
+        t_fail_freespace = t_fail_freespace_end - t_fail_freespace_start
+        return True, t_fail_freespace
 
     def connect_fails(s_fail, g_fail):
-
+        
         # Here we take in the tensors defining the start and goal points for each RRT
         # We start by doing an initial check to see which pairs of start-goal entries have the same x-value (vertical line check)
-
+        t_connect_fails_start = time.time()
         vertical_mask = s_fail[0] == g_fail[0]
+        
+        num_divisions = 50
 
-        num_divisions = 200
+        divs = np.linspace(0, 1, num_divisions)
 
         if vertical_mask == False:
 
-            x_divs = np.linspace(0, 1, num_divisions)
-
-            x_vals = s_fail[0] + (g_fail[0] - s_fail[0]) * x_divs
+            x_vals = s_fail[0] + (g_fail[0] - s_fail[0]) * divs
 
             # check if we can calculate the y_values using the same method
-            y_vals = s_fail[1] + (g_fail[1] - s_fail[1]) * x_divs
+            y_vals = s_fail[1] + (g_fail[1] - s_fail[1]) * divs
 
         elif vertical_mask == True:
             # start by choosing the divisions?
-            y_divs = np.linspace(0, 1, num_divisions)
             
             # apply these divisions to the linear interpolation between the y_start and y_goal
 
-            y_vals = s_fail[1] + (g_fail[1] - s_fail[1]) * y_divs
+            y_vals = s_fail[1] + (g_fail[1] - s_fail[1]) * divs
 
             # define x_vals_vert based on this new definition
             x_vals = [s_fail[0]] * len(y_vals)
             
         # next we do the freespace test
         for b in range(len(y_vals)):
-
+            fail_infreespace_counter = 0
+            fail_infreespace_times = 0
             point = [x_vals[b], y_vals[b]]
 
-            result = fail_inFreespace(point)
+            result, timed = fail_inFreespace(point)
+            fail_infreespace_counter += 1
+            fail_infreespace_times += timed
 
             if result == False:
-                return False
+                t_connect_fails_end = time.time()
+                t_connect_fails = t_connect_fails_end - t_connect_fails_start
+                # print(f'connect_fails: Number of fail_infreespace calls: {fail_infreespace_counter}')
+                # print(f'connect_fails: Average speed of fail_infreespace: {fail_infreespace_times/fail_infreespace_counter}')
+                return False, t_connect_fails
             
-        return True
+        # print(f'connect_fails: Number of fail_infreespace calls: {fail_infreespace_counter}')
+        # print(f'connect_fails: Average speed of fail_infreespace: {fail_infreespace_times/fail_infreespace_counter}')
+
+        t_connect_fails_end = time.time()
+        t_connect_fails = t_connect_fails_end - t_connect_fails_start
+        return True, t_connect_fails
 
 
     # let's use a visibility metric instead and then if the list is too long, we can
@@ -1616,11 +1542,18 @@ if t_plan == -1:
         # print(good_goals)
         
         # performs connections based on whether the nodes are visible to each other
+        connect_fail_counter = 0
+        connect_fail_times = 0
         for curr_goal in good_goals_sorted:
             for curr_start in good_starts:
-                
-                if connect_fails(curr_goal.coords, curr_start.coords) == True:
+                result, t_cf = connect_fails(curr_goal.coords, curr_start.coords)
+                connect_fail_counter += 1
+                connect_fail_times += t_cf
+                if result == True:
                     best_node_pairs.append([curr_goal, curr_start])
+
+        print(f'Number of connect_fails calls: {connect_fail_counter}')
+        print(f'Average speed of connect_fails function: {connect_fail_times/connect_fail_counter}')
 
         if len(good_goals) < len(good_starts):
             shorter_list = good_goals
@@ -1685,53 +1618,8 @@ if t_plan == -1:
 
         A_stack_T = A_stack.transpose(1, 2)
 
-        # Draw the RRT paths:
-        visual = Visualization()
 
-        # THIS IS LOWKEY WACK SORRY :/
-
-        plt.figure()
-
-        # plot the domain
-        domain_V = VPolytope(domain)
-        domain_pts = domain_V.vertices()
-        domain_pts = reorder_verts_2D(domain_pts)
-        plt.fill(domain_pts[0, :], domain_pts[1, :], 'white')
-
-        # plot the obstacles (the walls)
-        obs_rect1_pts = obs_rect1.vertices()
-        obs_rect1_pts = reorder_verts_2D(obs_rect1_pts)
-        plt.fill(obs_rect1_pts[0, :], obs_rect1_pts[1, :], 'r')
-
-        obs_rect2_pts = obs_rect2.vertices()
-        obs_rect2_pts = reorder_verts_2D(obs_rect2_pts)
-        plt.fill(obs_rect2_pts[0, :], obs_rect2_pts[1, :], 'r')
-
-        obs_rect3_pts = obs_rect3.vertices()
-        obs_rect3_pts = reorder_verts_2D(obs_rect3_pts)
-        plt.fill(obs_rect3_pts[0, :], obs_rect3_pts[1, :], 'r')
-
-        obs_rect4_pts = obs_rect4.vertices()
-        obs_rect4_pts = reorder_verts_2D(obs_rect4_pts)
-        plt.fill(obs_rect4_pts[0, :], obs_rect4_pts[1, :], 'r')
-
-        obs_rect5_pts = obs_rect5.vertices()
-        obs_rect5_pts = reorder_verts_2D(obs_rect5_pts)
-        plt.fill(obs_rect5_pts[0, :], obs_rect5_pts[1, :], 'r')
-
-        obs_rect6_pts = obs_rect6.vertices()
-        obs_rect6_pts = reorder_verts_2D(obs_rect6_pts)
-        plt.fill(obs_rect6_pts[0, :], obs_rect6_pts[1, :], 'r')
-
-        obs_rect7_pts = obs_rect7.vertices()
-        obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
-        plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
-
-        for pair in best_node_pairs:
-            plt.plot(pair[0].coords[0], pair[0].coords[1], 'ko')
-            plt.plot(pair[1].coords[0], pair[1].coords[1], 'go')
-
-        t_rrt, path_fixes = do_rrt(start_rrt, goal_rrt, visual)
+        t_rrt, path_fixes = do_rrt(start_rrt, goal_rrt)
 
         print(f'RRT results: {path_fixes}')
 
@@ -1871,7 +1759,7 @@ if t_plan == -1 and failed == False:
             while idx != len_fore - 1:
                 x_vals = [fore[idx].coords[0], fore[idx+1].coords[0]]
                 y_vals = [fore[idx].coords[1], fore[idx+1].coords[1]]
-                plt.plot(x_vals, y_vals, path_fix_cols[col_idx])
+                plt.plot(x_vals, y_vals, path_fix_cols[int(abs((len(path_fix_cols) - 1) - idx % (len_fore - 1)))])
                 idx += 1
         col_idx += 1
 
@@ -1884,19 +1772,20 @@ if t_plan == -1 and failed == False:
             while idx != len_rev - 1:
                 x_vals = [rev[idx].coords[0], rev[idx+1].coords[0]]
                 y_vals = [rev[idx].coords[1], rev[idx+1].coords[1]]
-                plt.plot(x_vals, y_vals, path_fix_cols[col_idx])
+                plt.plot(x_vals, y_vals, path_fix_cols[int(abs((len(path_fix_cols) - 1) - idx % (len_rev - 1)))])
                 idx += 1
         col_idx += 1
 
 
 
-
+# Draw the RRT paths:
+visual = Visualization()
 
 if path_fixes != False and path_fixes != None and failed == False:
     index = 0
     for batch_num, path in enumerate(path_fixes):
         if path:
-            visual.drawPath(path, color=path_fix_cols[index], linewidth=1)
+            visual.drawPath(path, color='green')
             # visual.show(f'RRT: Showing the raw path for batch {batch_num}')
             index += 1
         else:
