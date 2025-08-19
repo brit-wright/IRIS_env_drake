@@ -299,6 +299,27 @@ def connectsTo(tens_start, tens_goal, starts, goals):
 
     return connects_to_result, t_connectsto
 
+def pointsConnect(point1, point2):
+
+    # OPTIMIZING THIS
+    num_divisions = 200
+    divs = np.linspace(0, 1, num_divisions)
+
+    if point1[1] == point2[1]:
+        x_vals = [point1[0]] * num_divisions
+        y_vals = point1[1] + (point2[1] - point1[1]) * divs
+    else:
+        x_vals = point1[0] + (point2[0] - point1[0]) * divs
+        y_vals = point1[1] + (point2[1] - point1[1]) * divs
+
+    for i in range(num_divisions):
+        ans = check_obstacle_collision([x_vals[i], y_vals[i]], obstacles)
+        if ans == True:
+            # does not connect
+            return False
+
+    return True
+
 # RUN RRT IN GPU (CPU for now)
 def do_rrt(start_r, goal_r):
     t_begin_rrt = time.time()
@@ -675,7 +696,7 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 50
+num_samples = 10
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
@@ -1671,6 +1692,8 @@ if t_plan == -1:
         forward_dij_paths = []
         reverse_dij_paths = []
 
+        all_full_paths = []
+
         for path in path_fixes:
             if path != None:
                 forward_temp_dij_path = []
@@ -1697,7 +1720,71 @@ if t_plan == -1:
                     node_parent = node_parent.parent
                 reverse_dij_paths.append(reverse_temp_dij_path)
 
+                full_path = forward_temp_dij_path + path + reverse_temp_dij_path
+                all_full_paths.append(full_path)
+
         print('checking if this works lol')
+
+#### POST-PROCESSING STEP ######
+if t_plan != -1: # JUST IRIS
+    # Post-process the path
+    for ele in path:
+        i = 0
+        while (i < len(path)-2):
+            if pointsConnect(path[i].coords, path[i+2].coords) == True:
+                path.pop(i+1)
+            else:
+                i = i+1
+elif t_plan == -1: # IRIS + RRT
+    # # Post-process the paths
+    # for path in all_full_paths:
+    #     i = 0
+    #     while (i < len(path)-2):
+    #         if pointsConnect(path[i].coords, path[i+2].coords) == True:
+    #             path.pop(i+1)
+    #         else:
+    #             i = i+1
+
+    # print(f'path is: {path}')
+
+    # # get the best path
+    # min_cost = 10000
+    # min_path = []
+    # for path in all_full_paths:
+    #     cost = 0
+    #     for idx in range(len(path) - 2):
+    #         cost += distance(path[idx].coords, path[idx+1].coords)
+    #     if cost < min_cost:
+    #         min_cost = cost
+    #         min_path = path
+    # print(f'minimum path cost: {min_cost}')
+    # print(f'minimum path: {min_path}')
+
+    # Try finding the best path first and then only post-processing that path for 
+    # shorter computation times :D
+    # get the best path
+    min_cost = 10000
+    min_path = []
+    for path in all_full_paths:
+        cost = 0
+        for idx in range(len(path) - 2):
+            cost += distance(path[idx].coords, path[idx+1].coords)
+        if cost < min_cost:
+            min_cost = cost
+            min_path = path
+    print(f'minimum path cost: {min_cost}')
+    print(f'minimum path: {min_path}')
+
+    # Post-process the shortest path
+    i = 0
+    while (i < len(min_path)-2):
+        if pointsConnect(min_path[i].coords, min_path[i+2].coords) == True:
+            min_path.pop(i+1)
+        else:
+            i = i+1
+
+    print(f'path is: {min_path}')
+
 ###################################################################################################################
 
 # PLOTTING
@@ -1814,55 +1901,25 @@ else:
 path_fix_cols = ['black', 'blue', 'magenta', 'green', 'orange']
 if t_plan == -1 and failed == False:
     col_idx = 0
-    for fore in forward_dij_paths:
-
-        # plot each path in forward_dij_path
-        if len(fore) > 0:
-            len_fore = len(fore)
+    # print(f'all full paths: {all_full_paths}')
+    for pa in all_full_paths:
+        if len(pa) > 0:
+            len_pa = len(pa)
             idx = 0
-            while idx != len_fore - 1:
-                x_vals = [fore[idx].coords[0], fore[idx+1].coords[0]]
-                y_vals = [fore[idx].coords[1], fore[idx+1].coords[1]]
-                plt.plot(x_vals, y_vals, path_fix_cols[int(abs((len(path_fix_cols) - 1) - idx % (len_fore - 1)))])
+            while idx != len_pa - 1:
+                x_vals = [pa[idx].coords[0], pa[idx+1].coords[0]]
+                y_vals = [pa[idx].coords[1], pa[idx+1].coords[1]]
+                # plt.plot(x_vals, y_vals, path_fix_cols[int(abs((len(path_fix_cols) - 1) - idx % (len_pa - 1)))])
+                plt.plot(x_vals, y_vals, path_fix_cols[col_idx % len(path_fix_cols)])
                 idx += 1
         col_idx += 1
 
-    col_idx = 0
-    for rev in reverse_dij_paths:
-        
-        if len(rev) > 0:
-            len_rev = len(rev)
-            idx = 0
-            while idx != len_rev - 1:
-                x_vals = [rev[idx].coords[0], rev[idx+1].coords[0]]
-                y_vals = [rev[idx].coords[1], rev[idx+1].coords[1]]
-                plt.plot(x_vals, y_vals, path_fix_cols[int(abs((len(path_fix_cols) - 1) - idx % (len_rev - 1)))])
-                idx += 1
-        col_idx += 1
-
-
-
-# Draw the RRT paths:
-visual = Visualization()
-
-if path_fixes != False and path_fixes != None and failed == False:
-    index = 0
-    for batch_num, path in enumerate(path_fixes):
-        if path:
-            # print(index % (len(path_fixes) - 1))
-            # print(int(abs((len(path_fix_cols) - 1) - index % (len(path_fixes) - 1))))
-            # visual.drawPath(path, color=path_fix_cols[int(abs((len(path_fix_cols) - 1) - index % (len(path_fixes) - 1)))])
-            visual.drawPath(path, color='green')
-            # visual.show(f'RRT: Showing the raw path for batch {batch_num}')
-            index += 1
-        else:
-            print(f'RRT: No path found for batch {batch_num}')
-
-# ### NEW path definition method
-# paths have unequal length because path_fixes keeps that None types as paths
-# print(f'Length of path fixes: {len(path_fixes)}')
-# print(f'Length of forward dijkstra: {len(forward_dij_paths)}')
-# print(f'Length of reverse dijkstra: {len(reverse_dij_paths)}')
+    idx = 0
+    while idx != len(min_path) - 1:
+        x_vals = [min_path[idx].coords[0], min_path[idx+1].coords[0]]
+        y_vals = [min_path[idx].coords[1], min_path[idx+1].coords[1]]
+        plt.plot(x_vals, y_vals, 'yellow')
+        idx += 1
 
 # plot all the nodes (includes the vertices)
 for no in nodes:
