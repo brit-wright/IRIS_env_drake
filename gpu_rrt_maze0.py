@@ -16,9 +16,9 @@ import torch
 import csv
 
 
-STEP_SIZE = 0.8
-NMAX = 20000
-SMAX = 20000
+STEP_SIZE = 0.5
+NMAX = 3000
+SMAX = 3000
 
 device='cpu'
 
@@ -794,12 +794,17 @@ def do_rrt(start_r, goal_r):
                 t_end_rrt = time.time()
                 t_rrt = t_end_rrt - t_begin_rrt
                 print(f'Process Aborted at Node Count = {node_counts} and \nStep Count = {step_counts}. No path found')
+                print(f'RRT ended at {t_rrt} seconds')
                 return t_rrt, None
+            t_end_rrt = time.time()
+            t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
         
         if iter > 10000:
             t_end_rrt = time.time()
             t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
 
     print(node_counts, step_counts)
@@ -1013,6 +1018,7 @@ while (i < len(min_path)-2):
         i = i+1
 
 print(f'path is: {min_path}')
+print(f'Total time taken for RRT: {t_rrt} seconds')
 
 # write the path to a csv file
 with open('IRIS_env_drake/maze0_results.csv', 'w', newline='') as csvfile:

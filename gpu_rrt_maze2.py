@@ -16,9 +16,9 @@ import torch
 import csv
 
 
-STEP_SIZE = 0.8
-NMAX = 20000
-SMAX = 20000
+STEP_SIZE = 0.5
+NMAX = 200
+SMAX = 200
 
 device='cpu'
 
@@ -577,12 +577,17 @@ def do_rrt(start_r, goal_r):
                 t_end_rrt = time.time()
                 t_rrt = t_end_rrt - t_begin_rrt
                 print(f'Process Aborted at Node Count = {node_counts} and \nStep Count = {step_counts}. No path found')
+                print(f'RRT ended at {t_rrt} seconds')
                 return t_rrt, None
+            t_end_rrt = time.time()
+            t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
         
         if iter > 10000:
             t_end_rrt = time.time()
             t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
 
     print(node_counts, step_counts)

@@ -16,8 +16,8 @@ import torch
 import csv
 
 STEP_SIZE = 0.35
-NMAX = 5000
-SMAX = 5000
+NMAX = 200
+SMAX = 200
 
 device='cpu'
 
@@ -492,7 +492,7 @@ def do_rrt(start_r, goal_r):
 
     # GO INTO THE LOOP LOGIC #######################
     step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
-    p = 0.4
+    p = 0.3
 
     active_batches = torch.ones(batch_size, dtype=torch.bool, device=device)
     all_goal_batches = torch.tensor([], dtype=torch.long, device=device)
@@ -701,12 +701,17 @@ def do_rrt(start_r, goal_r):
                 t_end_rrt = time.time()
                 t_rrt = t_end_rrt - t_begin_rrt
                 print(f'Process Aborted at Node Count = {node_counts} and \nStep Count = {step_counts}. No path found')
+                print(f'RRT ended at {t_rrt} seconds')
                 return t_rrt, None
+            t_end_rrt = time.time()
+            t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
         
         if iter > 3000:
             t_end_rrt = time.time()
             t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
 
     print(node_counts, step_counts)
@@ -807,7 +812,7 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 60
+num_samples = 40
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])

@@ -17,8 +17,8 @@ import csv
 
 
 STEP_SIZE = 0.35
-NMAX = 5000
-SMAX = 5000
+NMAX = 3000
+SMAX = 3000
 
 device='cpu'
 
@@ -593,7 +593,7 @@ def do_rrt(start_r, goal_r):
 
     # GO INTO THE LOOP LOGIC #######################
     step_counts = torch.zeros(batch_size, dtype=torch.long, device=device)
-    p = 0.4
+    p = 0.3
 
     active_batches = torch.ones(batch_size, dtype=torch.bool, device=device)
     all_goal_batches = torch.tensor([], dtype=torch.long, device=device)
@@ -802,12 +802,17 @@ def do_rrt(start_r, goal_r):
                 t_end_rrt = time.time()
                 t_rrt = t_end_rrt - t_begin_rrt
                 print(f'Process Aborted at Node Count = {node_counts} and \nStep Count = {step_counts}. No path found')
+                print(f'RRT ended at {t_rrt} seconds')
                 return t_rrt, None
+            t_end_rrt = time.time()
+            t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
         
         if iter > 1000:
             t_end_rrt = time.time()
             t_rrt = t_end_rrt - t_begin_rrt
+            print(f'RRT ended at {t_rrt} seconds')
             break
 
     print(node_counts, step_counts)
@@ -910,7 +915,7 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 30
+num_samples = 50
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
@@ -1028,8 +1033,8 @@ inters_list_hedron = []
 # HERE, we need to only keep the polytope-vertex pairs, where there actually is an intersection
 
 # we currently have all_pols --> how to get parents and children from that?
-print(f'Length of r_H_list is {len(r_H_list)}')
-print(f'Length of all polytopes list is {len(all_pols)}')
+# print(f'Length of r_H_list is {len(r_H_list)}')
+# print(f'Length of all polytopes list is {len(all_pols)}')
 
 polytope_parent_child_dict = {} # the child is the key and the parents are the values
 # check for intersections between the polyhedrons
@@ -1049,10 +1054,10 @@ for hedron_idx in range(len(r_H_list)):
 
 # print(f'The parent child dictionary is {polytope_parent_child_dict}')
 
-print('Checking length compatibility')
+# print('Checking length compatibility')
 
-print(f'Length of dictionary is {len(polytope_parent_child_dict)}')
-print(f'Length of inters list: {len(inters_list)}')
+# print(f'Length of dictionary is {len(polytope_parent_child_dict)}')
+# print(f'Length of inters list: {len(inters_list)}')
 
 
 refined_polytope_parent_child_dict = {}
@@ -1398,7 +1403,7 @@ tf_points_neighbours = time.time()
 time_points_neighbours = tf_points_neighbours - t0_points_neighbours
 print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
 
-print(f'Number of nodes is: {len(nodes)}')
+# print(f'Number of nodes is: {len(nodes)}')
 
 
 # remove neighbour duplicates
@@ -1617,7 +1622,7 @@ if t_plan == -1:
         t_connect_fails_start = time.time()
         vertical_mask = s_fail[0] == g_fail[0]
         
-        num_divisions = 60
+        num_divisions = 30
 
         divs = np.linspace(0, 1, num_divisions)
 
