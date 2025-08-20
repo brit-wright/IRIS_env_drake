@@ -101,75 +101,253 @@ domain = HPolyhedron(domain_A, domain_b)
 
 
 # V_polytope rectangles
-rect_pts1 = np.array([[2, 18],
-                     [12, 18],
-                     [12, 17],
-                     [2, 17]])
+# rect_pts1 = np.array([[2, 18],
+#                      [12, 18],
+#                      [12, 17],
+#                      [2, 17]])
 
-rect_pts2 = np.array([[3, 17],
-                     [6, 17],
-                     [6, 14],
-                     [3, 14]])
+# rect_pts2 = np.array([[3, 17],
+#                      [6, 17],
+#                      [6, 14],
+#                      [3, 14]])
 
-rect_pts3 = np.array([[4, 14],
-                      [5, 14],
-                      [5, 6],
-                      [4, 6]])
+# rect_pts3 = np.array([[4, 14],
+#                       [5, 14],
+#                       [5, 6],
+#                       [4, 6]])
 
-rect_pts4 = np.array([[3, 6],
-                      [6, 6],
-                      [6, 3],
-                      [3, 3]])
+# rect_pts4 = np.array([[3, 6],
+#                       [6, 6],
+#                       [6, 3],
+#                       [3, 3]])
 
-rect_pts5 = np.array([[3, 3],
-                      [21, 3],
-                      [21, 1],
-                      [3, 1]])
+# rect_pts5 = np.array([[3, 3],
+#                       [21, 3],
+#                       [21, 1],
+#                       [3, 1]])
 
-rect_pts6 = np.array([[11, 11], 
-                    [11, 6],
-                    [12, 6],
-                    [12, 11]])
+# rect_pts6 = np.array([[11, 11], 
+#                     [11, 6],
+#                     [12, 6],
+#                     [12, 11]])
 
-rect_pts7 = np.array([[10, 14],
-                      [10, 11],
-                      [13, 11],
-                      [13, 14]])
+# rect_pts7 = np.array([[10, 14],
+#                       [10, 11],
+#                       [13, 11],
+#                       [13, 14]])
 
-rect_pts8 = np.array([[11, 15],
-                      [18, 15],
-                      [18, 14],
-                      [11, 14]])
+# rect_pts8 = np.array([[11, 15],
+#                       [18, 15],
+#                       [18, 14],
+#                       [11, 14]])
 
-rect_pts9 = np.array([[18, 16],
-                      [18, 13],
-                      [21, 13],
-                      [21, 16]])
+# rect_pts9 = np.array([[18, 16],
+#                       [18, 13],
+#                       [21, 13],
+#                       [21, 16]])
 
-rect_pts10 = np.array([[21, 15],
-                       [21, 14],
-                       [27, 14],
-                       [27, 15]])
+# rect_pts10 = np.array([[21, 15],
+#                        [21, 14],
+#                        [27, 14],
+#                        [27, 15]])
 
-rect_pts11 = np.array([[27, 16],
-                       [27, 13],
-                       [30, 13],
-                       [30, 16]])
+# rect_pts11 = np.array([[27, 16],
+#                        [27, 13],
+#                        [30, 13],
+#                        [30, 16]])
 
-rect_pts12 = np.array([[17, 10],
-                       [17, 3],
-                       [19, 3],
-                       [19, 10]])
+# rect_pts12 = np.array([[17, 10],
+#                        [17, 3],
+#                        [19, 3],
+#                        [19, 10]])
 
-rect_pts13 = np.array([[23, 11],
-                       [25, 11],
-                       [25, 6],
-                       [23, 6]])
+# rect_pts13 = np.array([[23, 11],
+#                        [25, 11],
+#                        [25, 6],
+#                        [23, 6]])
 
-rect_pts14 = np.array([[22, 3],
-                       [22, 1],
-                       [28, 1],
-                       [28, 3]])
+# rect_pts14 = np.array([[22, 3],
+#                        [22, 1],
+#                        [28, 1],
+#                        [28, 3]])
+
+# obs_rect1 = VPolytope(rect_pts1.T)
+# obs_rect2 = VPolytope(rect_pts2.T)
+# obs_rect3 = VPolytope(rect_pts3.T)
+# obs_rect4 = VPolytope(rect_pts4.T)
+# obs_rect5 = VPolytope(rect_pts5.T)
+# obs_rect6 = VPolytope(rect_pts6.T)
+# obs_rect7 = VPolytope(rect_pts7.T)
+# obs_rect8 = VPolytope(rect_pts8.T)
+# obs_rect9 = VPolytope(rect_pts9.T)
+# obs_rect10 = VPolytope(rect_pts10.T)
+# obs_rect11 = VPolytope(rect_pts11.T)
+# obs_rect12 = VPolytope(rect_pts12.T)
+# obs_rect13 = VPolytope(rect_pts13.T)
+# obs_rect14 = VPolytope(rect_pts14.T)
+
+
+rect_pts1 = np.array([[1.7, 18.3],
+                    [12.3, 18.3],
+                    [12.3, 17],
+                    [1.7, 17]])
+
+rect_pts2 = np.array([[2.7, 17],
+                    [6.3, 17],
+                    [6.3, 14],
+                    [2.7, 14]])
+
+rect_pts3 = np.array([[3.7, 14],
+                    [5.3, 14],
+                    [5.3, 6],
+                    [3.7, 6]])
+
+rect_pts4 = np.array([[2.7, 6],
+                    [6.3, 6],
+                    [6.3, 3],
+                    [2.7, 3]])
+
+rect_pts5 = np.array([[2.7, 3],
+                    [21.3, 3],
+                    [21.3, 0.7],
+                    [2.7, 0.7]])
+
+rect_pts6 = np.array([[10.7, 11],
+                    [10.7, 5.7],
+                    [12.3, 5.7],
+                    [12.3, 11]])
+
+rect_pts7 = np.array([[9.7, 14],
+                    [9.7, 11],
+                    [13.3, 11],
+                    [13.3, 14]])
+
+rect_pts8 = np.array([[10.7, 15.3],
+                    [18, 15.3],
+                    [18, 14],
+                    [10.7, 14]])
+
+rect_pts9 = np.array([[18, 16.3],
+                    [18, 12.7],
+                    [21, 12.7],
+                    [21, 16.3]])
+
+rect_pts10 = np.array([[21, 15.3],
+                     [21, 13.7], 
+                     [27, 13.7],
+                     [27, 15.3]])
+
+rect_pts11 = np.array([[27, 16.3],
+                     [27, 12.7],
+                     [30, 12.7],
+                     [30, 16.3]])
+
+rect_pts12 = np.array([[16.7, 10.3],
+                     [16.7, 3],
+                     [19.3, 3],
+                     [19.3, 10.3]])
+
+rect_pts13 = np.array([[22.7, 11.3],
+                     [25.3, 11.3],
+                     [25.3, 5.7],
+                     [22.7, 5.7]])
+
+rect_pts14 = np.array([[21.7, 3.3],
+                     [21.7, 0.7],
+                     [28.3, 0.7],
+                     [28.3, 3.3]])
+
+rect_pts15 = np.array([[1.7, 17],
+                     [1.7, 16.7],
+                     [2.7, 16.7],
+                     [2.7, 17]])
+
+rect_pts16 = np.array([[6.3, 17],
+                     [6.3, 16.7],
+                     [12.3, 16.7],
+                     [12.3, 17]])
+
+rect_pts17 = np.array([[2.7, 14],
+                     [2.7, 13.7],
+                     [3.7, 13.7],
+                     [3.7, 14]])
+
+rect_pts18 = np.array([[5.3, 14],
+                     [5.3, 13.7],
+                     [6.3, 13.7],
+                     [6.3, 14],
+                     [5.3, 14]])
+
+rect_pts19 = np.array([[3.7, 6],
+                     [3.7, 6.3],
+                     [2.7, 6.3],
+                     [2.7, 3],
+                     [2.7, 3]])
+
+rect_pts20 = np.array([[5.3, 6],
+                     [5.3, 6.3],
+                     [6.3, 6.3],
+                     [6.3, 3]])
+
+rect_pts21 = np.array([[6.3, 3],
+                     [6.3, 3.3],
+                     [16.7, 3.3],
+                     [16.7, 3]])
+
+rect_pts22 = np.array([[19.3, 3],
+                     [19.3, 3.3],
+                     [21.3, 3.3],
+                     [21.3, 3]])
+
+rect_pts23 = np.array([[10.7, 11],
+                     [10.7, 10.7],
+                     [9.7, 10.7],
+                     [9.7, 11]])
+
+rect_pts24 = np.array([[12.3, 11],
+                     [12.3, 10.7],
+                     [13.3, 10.7],
+                     [13.3, 11]])
+
+rect_pts25 = np.array([[13.3, 14],
+                     [13.3, 13.7],
+                     [18, 13.7],
+                     [18, 14]])
+
+rect_pts26 = np.array([[18, 13.7],
+                     [18, 12.7],
+                     [17.7, 12.7],
+                     [17.7, 13.7]])
+
+rect_pts27 = np.array([[9.7, 14.3],
+                     [9.7, 14],
+                     [10.7, 14],
+                     [10.7, 14.3]])
+
+rect_pts28 = np.array([[17.7, 15.3],
+                     [17.7, 16.3],
+                     [18, 16.3],
+                     [18, 15.3]])
+
+rect_pts29 = np.array([[21, 16.3],
+                     [21, 15.3],
+                     [21.3, 15.3],
+                     [21.3, 16.3]])
+
+rect_pts30 = np.array([[21.3, 12.7],
+                     [21.3, 13.7],
+                     [21, 13.7],
+                     [21, 12.7]])
+
+rect_pts31 = np.array([[26.7, 16.3],
+                     [26.7, 15.3],
+                     [27, 15.3],
+                     [27, 16.3]])
+
+rect_pts32 = np.array([[26.7, 12.7],
+                     [26.7, 13.7],
+                     [27, 13.7],
+                     [27, 12.7]])
 
 obs_rect1 = VPolytope(rect_pts1.T)
 obs_rect2 = VPolytope(rect_pts2.T)
@@ -185,6 +363,32 @@ obs_rect11 = VPolytope(rect_pts11.T)
 obs_rect12 = VPolytope(rect_pts12.T)
 obs_rect13 = VPolytope(rect_pts13.T)
 obs_rect14 = VPolytope(rect_pts14.T)
+obs_rect15 = VPolytope(rect_pts15.T)
+obs_rect16 = VPolytope(rect_pts16.T)
+obs_rect17 = VPolytope(rect_pts17.T)
+obs_rect18 = VPolytope(rect_pts18.T)
+obs_rect19 = VPolytope(rect_pts19.T)
+obs_rect20 = VPolytope(rect_pts20.T)
+obs_rect21 = VPolytope(rect_pts21.T)
+obs_rect22 = VPolytope(rect_pts22.T)
+obs_rect23 = VPolytope(rect_pts23.T)
+obs_rect24 = VPolytope(rect_pts24.T)
+obs_rect25 = VPolytope(rect_pts25.T)
+obs_rect26 = VPolytope(rect_pts26.T)
+obs_rect27 = VPolytope(rect_pts27.T)
+obs_rect28 = VPolytope(rect_pts28.T)
+obs_rect29 = VPolytope(rect_pts29.T)
+obs_rect30 = VPolytope(rect_pts30.T)
+obs_rect31 = VPolytope(rect_pts32.T)
+obs_rect32 = VPolytope(rect_pts32.T)
+
+
+obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, obs_rect7, 
+             obs_rect8, obs_rect9, obs_rect10, obs_rect11, obs_rect12, obs_rect13, obs_rect14,
+             obs_rect15, obs_rect16, obs_rect17, obs_rect18, obs_rect19, obs_rect20, obs_rect21,
+             obs_rect22, obs_rect23, obs_rect24, obs_rect25, obs_rect26, obs_rect27, obs_rect28,
+             obs_rect29, obs_rect30, obs_rect31, obs_rect32]
+
 
 ###############################################################################################
 # DEFINE THE VISUALIZATION CLASS FOR RRT
@@ -601,7 +805,7 @@ def do_rrt(start_r, goal_r):
                 return t_rrt, None
             break
         
-        if iter > 3000:
+        if iter > 1000:
             t_end_rrt = time.time()
             t_rrt = t_end_rrt - t_begin_rrt
             break
@@ -695,7 +899,10 @@ def distance(point1, point2):
 
 # list of all the obstalces
 obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, obs_rect7, 
-             obs_rect8, obs_rect9, obs_rect10, obs_rect11, obs_rect12, obs_rect13, obs_rect14]
+             obs_rect8, obs_rect9, obs_rect10, obs_rect11, obs_rect12, obs_rect13, obs_rect14,
+             obs_rect15, obs_rect16, obs_rect17, obs_rect18, obs_rect19, obs_rect20, obs_rect21,
+             obs_rect22, obs_rect23, obs_rect24, obs_rect25, obs_rect26, obs_rect27, obs_rect28,
+             obs_rect29, obs_rect30, obs_rect31, obs_rect32]
 
 # choose a sample intial point to do optimization from
 
@@ -703,7 +910,7 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 60
+num_samples = 30
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
@@ -712,7 +919,13 @@ for pt in range(num_samples):
     or obs_rect4.PointInSet(sample_pt) or obs_rect5.PointInSet(sample_pt) or obs_rect6.PointInSet(sample_pt) 
     or obs_rect7.PointInSet(sample_pt) or obs_rect8.PointInSet(sample_pt) or obs_rect9.PointInSet(sample_pt)
     or obs_rect10.PointInSet(sample_pt) or obs_rect11.PointInSet(sample_pt) or obs_rect12.PointInSet(sample_pt)
-    or obs_rect13.PointInSet(sample_pt) or obs_rect14.PointInSet(sample_pt)):
+    or obs_rect13.PointInSet(sample_pt) or obs_rect14.PointInSet(sample_pt) or obs_rect15.PointInSet(sample_pt)
+    or obs_rect16.PointInSet(sample_pt) or obs_rect17.PointInSet(sample_pt) or obs_rect18.PointInSet(sample_pt)
+    or obs_rect19.PointInSet(sample_pt) or obs_rect20.PointInSet(sample_pt) or obs_rect21.PointInSet(sample_pt)
+    or obs_rect22.PointInSet(sample_pt) or obs_rect23.PointInSet(sample_pt) or obs_rect24.PointInSet(sample_pt)
+    or obs_rect25.PointInSet(sample_pt) or obs_rect26.PointInSet(sample_pt) or obs_rect27.PointInSet(sample_pt)
+    or obs_rect28.PointInSet(sample_pt) or obs_rect29.PointInSet(sample_pt) or obs_rect30.PointInSet(sample_pt)
+    or obs_rect31.PointInSet(sample_pt) or obs_rect32.PointInSet(sample_pt)):
         sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
         
     sample_pts.append(sample_pt)
@@ -1870,6 +2083,77 @@ obs_rect14_pts = obs_rect14.vertices()
 obs_rect14_pts = reorder_verts_2D(obs_rect14_pts)
 plt.fill(obs_rect14_pts[0, :], obs_rect14_pts[1, :], 'r')
 
+obs_rect15_pts = obs_rect15.vertices()
+obs_rect15_pts = reorder_verts_2D(obs_rect15_pts)
+plt.fill(obs_rect15_pts[0, :], obs_rect15_pts[1, :], 'r')
+
+obs_rect16_pts = obs_rect16.vertices()
+obs_rect16_pts = reorder_verts_2D(obs_rect16_pts)
+plt.fill(obs_rect16_pts[0, :], obs_rect16_pts[1, :], 'r')
+
+obs_rect17_pts = obs_rect17.vertices()
+obs_rect17_pts = reorder_verts_2D(obs_rect17_pts)
+plt.fill(obs_rect17_pts[0, :], obs_rect17_pts[1, :], 'r')
+
+obs_rect18_pts = obs_rect18.vertices()
+obs_rect18_pts = reorder_verts_2D(obs_rect18_pts)
+plt.fill(obs_rect18_pts[0, :], obs_rect18_pts[1, :], 'r')
+
+obs_rect19_pts = obs_rect19.vertices()
+obs_rect19_pts = reorder_verts_2D(obs_rect19_pts)
+plt.fill(obs_rect19_pts[0, :], obs_rect19_pts[1, :], 'r')
+
+obs_rect20_pts = obs_rect20.vertices()
+obs_rect20_pts = reorder_verts_2D(obs_rect20_pts)
+plt.fill(obs_rect20_pts[0, :], obs_rect20_pts[1, :], 'r')
+
+obs_rect21_pts = obs_rect21.vertices()
+obs_rect21_pts = reorder_verts_2D(obs_rect21_pts)
+plt.fill(obs_rect21_pts[0, :], obs_rect21_pts[1, :], 'r')
+
+obs_rect22_pts = obs_rect22.vertices()
+obs_rect22_pts = reorder_verts_2D(obs_rect22_pts)
+plt.fill(obs_rect22_pts[0, :], obs_rect22_pts[1, :], 'r')
+
+obs_rect23_pts = obs_rect23.vertices()
+obs_rect23_pts = reorder_verts_2D(obs_rect23_pts)
+plt.fill(obs_rect23_pts[0, :], obs_rect23_pts[1, :], 'r')
+
+obs_rect24_pts = obs_rect24.vertices()
+obs_rect24_pts = reorder_verts_2D(obs_rect24_pts)
+plt.fill(obs_rect24_pts[0, :], obs_rect24_pts[1, :], 'r')
+
+obs_rect25_pts = obs_rect25.vertices()
+obs_rect25_pts = reorder_verts_2D(obs_rect25_pts)
+plt.fill(obs_rect25_pts[0, :], obs_rect25_pts[1, :], 'r')
+
+obs_rect26_pts = obs_rect26.vertices()
+obs_rect26_pts = reorder_verts_2D(obs_rect26_pts)
+plt.fill(obs_rect26_pts[0, :], obs_rect26_pts[1, :], 'r')
+
+obs_rect27_pts = obs_rect27.vertices()
+obs_rect27_pts = reorder_verts_2D(obs_rect27_pts)
+plt.fill(obs_rect27_pts[0, :], obs_rect27_pts[1, :], 'r')
+
+obs_rect28_pts = obs_rect28.vertices()
+obs_rect28_pts = reorder_verts_2D(obs_rect28_pts)
+plt.fill(obs_rect28_pts[0, :], obs_rect28_pts[1, :], 'r')
+
+obs_rect29_pts = obs_rect29.vertices()
+obs_rect29_pts = reorder_verts_2D(obs_rect29_pts)
+plt.fill(obs_rect29_pts[0, :], obs_rect29_pts[1, :], 'r')
+
+obs_rect30_pts = obs_rect30.vertices()
+obs_rect30_pts = reorder_verts_2D(obs_rect30_pts)
+plt.fill(obs_rect30_pts[0, :], obs_rect30_pts[1, :], 'r')
+
+obs_rect31_pts = obs_rect31.vertices()
+obs_rect31_pts = reorder_verts_2D(obs_rect31_pts)
+plt.fill(obs_rect31_pts[0, :], obs_rect31_pts[1, :], 'r')
+
+obs_rect32_pts = obs_rect32.vertices()
+obs_rect32_pts = reorder_verts_2D(obs_rect32_pts)
+plt.fill(obs_rect32_pts[0, :], obs_rect32_pts[1, :], 'r')
 
 
 # plot the polytopes
