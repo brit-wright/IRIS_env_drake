@@ -13,6 +13,7 @@ from pydrake.all import *
 import bisect
 import time
 import torch
+import csv
 
 
 STEP_SIZE = 0.8
@@ -308,6 +309,35 @@ def connectsTo(tens_start, tens_goal, starts, goals):
     # print(f'def connectsTo: {t_connectsto}')
 
     return connects_to_result, t_connectsto
+
+def check_obstacle_collision(coord, obstacles):
+    
+    for v_pol in obstacles:
+        # do an early check for whether the point intersects
+        if v_pol.PointInSet(coord) == True:
+            return True
+    return False
+
+def pointsConnect(point1, point2):
+
+    # OPTIMIZING THIS
+    num_divisions = 200
+    divs = np.linspace(0, 1, num_divisions)
+
+    if point1[1] == point2[1]:
+        x_vals = [point1[0]] * num_divisions
+        y_vals = point1[1] + (point2[1] - point1[1]) * divs
+    else:
+        x_vals = point1[0] + (point2[0] - point1[0]) * divs
+        y_vals = point1[1] + (point2[1] - point1[1]) * divs
+
+    for i in range(num_divisions):
+        ans = check_obstacle_collision([x_vals[i], y_vals[i]], obstacles)
+        if ans == True:
+            # does not connect
+            return False
+
+    return True
 
 # RUN RRT IN GPU (CPU for now)
 def do_rrt(start_r, goal_r):
@@ -775,6 +805,38 @@ t_rrt, path_fixes = do_rrt(start_rrt, goal_rrt)
 
 print(f'RRT results: {path_fixes}')
 
+# Find the shortest (best) path
+min_cost = 10000
+min_path = []
+for path in path_fixes:
+    
+    if path != None:
+        cost = 0
+        for idx in range(len(path) - 2):
+            cost += distance(path[idx].coords, path[idx+1].coords)
+        if cost < min_cost:
+            min_cost = cost
+            min_path = path
+print(f'minimum path cost: {min_cost}')
+print(f'minimum path: {min_path}')
+
+# Post-process the shortest (best) path
+i = 0
+while (i < len(min_path)-2):
+    if pointsConnect(min_path[i].coords, min_path[i+2].coords) == True:
+        min_path.pop(i+1)
+    else:
+        i = i+1
+
+print(f'path is: {min_path}')
+
+# write the path to a csv file
+with open('IRIS_env_drake/maze0_results.csv', 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    for ele in min_path:
+        writer.writerow(ele.coords)
+
+
 ###################################################################################################################
 
 # PLOTTING
@@ -861,6 +923,13 @@ for path in path_fixes:
             plt.plot(x_vals, y_vals, path_fix_cols[col_idx % len(path_fix_cols)])
             idx += 1
     col_idx += 1
+
+idx = 0
+while idx != len(min_path) - 1:
+    x_vals = [min_path[idx].coords[0], min_path[idx+1].coords[0]]
+    y_vals = [min_path[idx].coords[1], min_path[idx+1].coords[1]]
+    plt.plot(x_vals, y_vals, 'yellow')
+    idx += 1
 
 
 plt.axis('equal')

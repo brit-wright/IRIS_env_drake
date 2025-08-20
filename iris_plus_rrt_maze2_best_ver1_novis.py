@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.10
+#!/usr/bin/env python3.8
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -15,6 +15,7 @@ import time
 import torch
 import csv
 
+
 STEP_SIZE = 0.35
 NMAX = 5000
 SMAX = 5000
@@ -24,7 +25,7 @@ device='cpu'
 ###############################################################################################
 # Create a seed
 # seed = int(random.random()*10000)
-# seed = 2040
+# seed = 4333
 # random.seed(seed)
 # print(f"{seed=}")
 ###############################################################################################
@@ -99,71 +100,97 @@ domain_b = np.array([[x1_max],
 domain = HPolyhedron(domain_A, domain_b)
 
 
+# # V_polytope rectangles
+# rect_pts1 = np.array([[0.8, 9.2],
+#                      [2.2, 9.2],
+#                      [2.2, 7.8],
+#                      [0.8, 7.8]])
+
+# rect_pts2 = np.array([[0.8, 7.2],
+#                      [2.2, 7.2],
+#                      [2.2, 2.8],
+#                      [0.8, 2.8]])
+
+# rect_pts3 = np.array([[0.8, 0],
+#                       [0.8, 2.2],
+#                       [2.2, 0],
+#                       [2.2, 2.2]])
+
+# rect_pts4 = np.array([[3.8, 8.2],
+#                       [3.8, 4.8],
+#                       [5.2, 4.8],
+#                       [5.2, 8.2]])
+
+# rect_pts5 = np.array([[3.8, 3.2],
+#                       [3.8, 0],
+#                       [5.2, 0],
+#                       [5.2, 3.2]])
+
+# rect_pts6 = np.array([[6.8, 6.8], 
+#                     [8.2, 6.8],
+#                     [8.2, 10],
+#                     [6.8, 10]])
+
+# rect_pts7 = np.array([[6.8, 5.2],
+#                       [6.8, 3.8],
+#                       [9.2, 3.8],
+#                       [9.2, 5.2]])
+
+# rect_pts8 = np.array([[5.8, 3.2],
+#                       [7.2, 3.2],
+#                       [7.2, 1.8],
+#                       [5.8, 1.8]])
+
+# rect_pts9 = np.array([[7.8, 1.2],
+#                       [7.8, 0],
+#                       [10, 0],
+#                       [10, 1.2]])
+
 # V_polytope rectangles
-rect_pts1 = np.array([[0.8, 9.2],
-                     [3.2, 9.2],
-                     [3.2, 8],
-                     [0.8, 8]])
+rect_pts1 = np.array([[0.7, 9.3],
+                     [2.3, 9.3],
+                     [2.3, 7.7],
+                     [0.7, 7.7]])
 
-rect_pts2 = np.array([[0.8, 8],
-                     [2.2, 8],
-                     [2.2, 5.8],
-                     [0.8, 5.8]])
+rect_pts2 = np.array([[0.7, 7.3],
+                     [2.3, 7.3],
+                     [2.3, 2.7],
+                     [0.7, 2.7]])
 
-rect_pts3 = np.array([[2.8, 7.2],
-                      [4.2, 7.2],
-                      [4.2, 5],
-                      [2.8, 5]])
+rect_pts3 = np.array([[0.7, 0],
+                      [0.7, 2.3],
+                      [2.3, 0],
+                      [2.3, 2.3]])
 
-rect_pts4 = np.array([[1.8, 5],
-                      [1.8, 3.8],
-                      [4.2, 5],
-                      [4.2, 3.8]])
+rect_pts4 = np.array([[3.7, 8.3],
+                      [3.7, 4.7],
+                      [5.3, 4.7],
+                      [5.3, 8.3]])
 
-rect_pts5 = np.array([[0.8, 3.2],
-                      [0.8, 1.8],
-                      [5.2, 1.8],
-                      [5.2, 3.2]])
+rect_pts5 = np.array([[3.7, 3.3],
+                      [3.7, 0],
+                      [5.3, 0],
+                      [5.3, 3.3]])
 
-rect_pts6 = np.array([[2.8, 0], 
-                    [2.8, 1.2],
-                    [6, 1.2],
-                    [6, 0]])
+rect_pts6 = np.array([[6.7, 6.7], 
+                    [8.3, 6.7],
+                    [8.3, 10],
+                    [6.7, 10]])
 
-rect_pts7 = np.array([[6, 2.2],
-                      [7.2, 2.2],
-                      [7.2, 0],
-                      [6, 0]])
+rect_pts7 = np.array([[6.7, 5.3],
+                      [6.7, 3.7],
+                      [9.3, 3.7],
+                      [9.3, 5.3]])
 
-rect_pts8 = np.array([[6.8, 7.2],
-                      [8.2, 7.2],
-                      [8.2, 2.8],
-                      [6.8, 2.8]])
+rect_pts8 = np.array([[5.7, 3.3],
+                      [7.3, 3.3],
+                      [7.3, 1.7],
+                      [5.7, 1.7]])
 
-rect_pts9 = np.array([[7.8, 0.8],
-                      [7.8, 2.2],
-                      [9, 2.2],
-                      [9, 0.8]])
-
-rect_pts10 = np.array([[9, 0],
-                       [9, 3.2],
-                       [10, 3.2],
-                       [10, 0]])
-
-rect_pts11 = np.array([[4.8, 3.8],
-                       [4.8, 9.2],
-                       [6, 9.2],
-                       [6, 3.8]])
-
-rect_pts12 = np.array([[6, 8],
-                       [6, 9.2],
-                       [10, 9.2],
-                       [10, 8]])
-
-rect_pts13 = np.array([[8.8, 3.8],
-                       [10, 3.8],
-                       [10, 8],
-                       [8.8, 8]])
+rect_pts9 = np.array([[7.7, 1.3],
+                      [7.7, 0],
+                      [10, 0],
+                      [10, 1.3]])
 
 obs_rect1 = VPolytope(rect_pts1.T)
 obs_rect2 = VPolytope(rect_pts2.T)
@@ -174,31 +201,6 @@ obs_rect6 = VPolytope(rect_pts6.T)
 obs_rect7 = VPolytope(rect_pts7.T)
 obs_rect8 = VPolytope(rect_pts8.T)
 obs_rect9 = VPolytope(rect_pts9.T)
-obs_rect10 = VPolytope(rect_pts10.T)
-obs_rect11 = VPolytope(rect_pts11.T)
-obs_rect12 = VPolytope(rect_pts12.T)
-obs_rect13 = VPolytope(rect_pts13.T)
-
-###############################################################################################
-# DEFINE THE VISUALIZATION CLASS FOR RRT
-
-xlabels = np.arange(x1_min, x1_max, 5)
-ylabels = np.arange(x2_min, x2_max, 5)
-
-class Visualization:
-    def __init__(self):
-
-        placeholder = True # I had nothing to put here :/
-
-    def drawNode(self, node, *args, **kwargs):
-        plt.plot(node.x, node.y, *args, **kwargs)
-
-    def drawEdge(self, head, tail, *args, **kwargs):
-        plt.plot((head.coords[0], tail.coords[0]), (head.coords[1], tail.coords[1]), *args, **kwargs)
-
-    def drawPath(self, path, *args, **kwargs):
-        for i in range(len(path)-1):
-            self.drawEdge(path[i], path[i+1], *args, **kwargs)
 
 ###############################################################################################
 # RRT, AND COLLISION-CHECKING FUNCTIONS
@@ -688,7 +690,7 @@ def distance(point1, point2):
 
 # list of all the obstalces
 obstacles = [obs_rect1, obs_rect2, obs_rect3, obs_rect4, obs_rect5, obs_rect6, obs_rect7, 
-             obs_rect8, obs_rect9, obs_rect10, obs_rect11, obs_rect12, obs_rect13]
+             obs_rect8, obs_rect9]
 
 # choose a sample intial point to do optimization from
 
@@ -696,16 +698,14 @@ sample_pts = []
 
 # let's do 3 sample points
 
-num_samples = 50
+num_samples = 30
 
 for pt in range(num_samples):
     sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
 
     while (obs_rect1.PointInSet(sample_pt) or obs_rect2.PointInSet(sample_pt) or obs_rect3.PointInSet(sample_pt) 
     or obs_rect4.PointInSet(sample_pt) or obs_rect5.PointInSet(sample_pt) or obs_rect6.PointInSet(sample_pt) 
-    or obs_rect7.PointInSet(sample_pt) or obs_rect8.PointInSet(sample_pt) or obs_rect9.PointInSet(sample_pt)
-    or obs_rect10.PointInSet(sample_pt) or obs_rect11.PointInSet(sample_pt) or obs_rect12.PointInSet(sample_pt)
-    or obs_rect13.PointInSet(sample_pt)):
+    or obs_rect7.PointInSet(sample_pt) or obs_rect8.PointInSet(sample_pt) or obs_rect9.PointInSet(sample_pt)):
         sample_pt = np.array([np.random.uniform(x1_min, x1_max), np.random.uniform(x2_min, x2_max)])
         
     sample_pts.append(sample_pt)
@@ -1062,7 +1062,7 @@ t0_points = time.time()
 #     goal = [round(np.random.uniform(x1_min, x1_max), 6), round(np.random.uniform(x2_min, x2_max), 6)]
 
 start = [0.6, 0.7]
-goal = [8.5, 7.5]
+goal = [9, 9]
 
 # define the start and goal as nodes
 startnode = Node(None, start)
@@ -1136,14 +1136,11 @@ if startnode.polytopes != None:
         for child in refined_polytope_parent_child_dict:
 
             if tope in refined_polytope_parent_child_dict[child]:
-                
-                start_neighbours = []
 
-                for n in nodes:
-                    if n.polytopes != None:
-                        if child in n.polytopes:
-                            start_neighbours.append(n)
-            
+                # TODO: Do a try except for the case where n.polytopes in NoneType (not iterable)
+
+                start_neighbours = [n for n in nodes if child in n.polytopes]
+
                 for start_neigh in start_neighbours:
 
                     if start_neigh.coords not in start_coords:
@@ -1157,13 +1154,6 @@ if goalnode.polytopes != None:
         for child in refined_polytope_parent_child_dict:
 
             if tope in refined_polytope_parent_child_dict[child]:
-
-                # goal_neighbours = []
-
-                # for n in nodes:
-                #     if n.polytopes != None:
-                #         if child in n.polytopes:
-                #             goal_neighbours.append(n)
 
                 goal_neighbours = [n for n in nodes if child in n.polytopes]
 
@@ -1192,7 +1182,7 @@ print(f'Time taken to generate start/goal neighbours: {time_points_neighbours}')
 
 print(f'Number of nodes is: {len(nodes)}')
 
-failed = True
+
 # remove neighbour duplicates
 
 for node in nodes:
@@ -1266,6 +1256,8 @@ def run_planner(start, goal):
             print(f'Goal found. Goal cost is: {total_cost} in Time: {t_planner}')
 
             t_forward = t_planner
+
+            # Post process the path
 
             return path, t_planner, t_forward
         
@@ -1363,7 +1355,7 @@ path_fixes = False    # for fix in path_fixes:
     #     if len(fix > 0):
     #         print('valid path found!')
     #         print(fix)
-if t_plan == -1:
+if t_plan == -1: # IRIS + RRT
     start_fails = path
     # this means that the start to goal Dijkstra's planner failed
     goal_fails, t_reverse = run_reverse_planner(goalnode)
@@ -1604,7 +1596,7 @@ if t_plan == -1:
     print(f'Length of good_starts: {len(good_starts)}')
     print(f'Length of good_goals: {len(good_goals)}')
 
-    
+    failed = True
     if (len(good_starts) != 0) and (len(good_goals) != 0):
         failed = False
 
@@ -1747,7 +1739,7 @@ if t_plan != -1: # JUST IRIS
                 path.pop(i+1)
             else:
                 i = i+1
-elif t_plan == -1 and failed == False: # IRIS + RRT
+elif t_plan == -1: # IRIS + RRT
     # # Post-process the paths
     # for path in all_full_paths:
     #     i = 0
@@ -1797,161 +1789,32 @@ elif t_plan == -1 and failed == False: # IRIS + RRT
 
     print(f'path is: {min_path}')
 
+    
+        
 ###################################################################################################################
+#### PRINT AND RETURN RESULTS
 
-# PLOTTING
-plt.figure()
-
-# plot the domain
-domain_V = VPolytope(domain)
-domain_pts = domain_V.vertices()
-domain_pts = reorder_verts_2D(domain_pts)
-plt.fill(domain_pts[0, :], domain_pts[1, :], 'white')
-
-# plot the obstacles (the walls)
-obs_rect1_pts = obs_rect1.vertices()
-obs_rect1_pts = reorder_verts_2D(obs_rect1_pts)
-plt.fill(obs_rect1_pts[0, :], obs_rect1_pts[1, :], 'r')
-
-obs_rect2_pts = obs_rect2.vertices()
-obs_rect2_pts = reorder_verts_2D(obs_rect2_pts)
-plt.fill(obs_rect2_pts[0, :], obs_rect2_pts[1, :], 'r')
-
-obs_rect3_pts = obs_rect3.vertices()
-obs_rect3_pts = reorder_verts_2D(obs_rect3_pts)
-plt.fill(obs_rect3_pts[0, :], obs_rect3_pts[1, :], 'r')
-
-obs_rect4_pts = obs_rect4.vertices()
-obs_rect4_pts = reorder_verts_2D(obs_rect4_pts)
-plt.fill(obs_rect4_pts[0, :], obs_rect4_pts[1, :], 'r')
-
-obs_rect5_pts = obs_rect5.vertices()
-obs_rect5_pts = reorder_verts_2D(obs_rect5_pts)
-plt.fill(obs_rect5_pts[0, :], obs_rect5_pts[1, :], 'r')
-
-obs_rect6_pts = obs_rect6.vertices()
-obs_rect6_pts = reorder_verts_2D(obs_rect6_pts)
-plt.fill(obs_rect6_pts[0, :], obs_rect6_pts[1, :], 'r')
-
-obs_rect7_pts = obs_rect7.vertices()
-obs_rect7_pts = reorder_verts_2D(obs_rect7_pts)
-plt.fill(obs_rect7_pts[0, :], obs_rect7_pts[1, :], 'r')
-
-obs_rect8_pts = obs_rect8.vertices()
-obs_rect8_pts = reorder_verts_2D(obs_rect8_pts)
-plt.fill(obs_rect8_pts[0, :], obs_rect8_pts[1, :], 'r')
-
-obs_rect9_pts = obs_rect9.vertices()
-obs_rect9_pts = reorder_verts_2D(obs_rect9_pts)
-plt.fill(obs_rect9_pts[0, :], obs_rect9_pts[1, :], 'r')
-
-obs_rect10_pts = obs_rect10.vertices()
-obs_rect10_pts = reorder_verts_2D(obs_rect10_pts)
-plt.fill(obs_rect10_pts[0, :], obs_rect10_pts[1, :], 'r')
-
-obs_rect11_pts = obs_rect11.vertices()
-obs_rect11_pts = reorder_verts_2D(obs_rect11_pts)
-plt.fill(obs_rect11_pts[0, :], obs_rect11_pts[1, :], 'r')
-
-obs_rect12_pts = obs_rect12.vertices()
-obs_rect12_pts = reorder_verts_2D(obs_rect12_pts)
-plt.fill(obs_rect12_pts[0, :], obs_rect12_pts[1, :], 'r')
-
-obs_rect13_pts = obs_rect13.vertices()
-obs_rect13_pts = reorder_verts_2D(obs_rect13_pts)
-plt.fill(obs_rect13_pts[0, :], obs_rect13_pts[1, :], 'r')
-
-# plot the polytopes
-colour_list = ['turquoise', 'indianred', 'darkseagreen', 'palevioletred', 
-               'goldenrod', 'forestgreen', 'mediumpurple', 'peru', 'rosybrown', 
-               'turquoise', 'indianred', 'darkseagreen', 'turquoise', 'indianred', 
-               'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 
-               'peru', 'rosybrown', 'turquoise', 'indianred', 'darkseagreen', 
-                'turquoise', 'indianred', 
-               'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 
-               'peru', 'rosybrown', 'turquoise', 'indianred', 'darkseagreen', 
-                'turquoise', 'indianred', 
-               'darkseagreen', 'palevioletred', 'goldenrod', 'forestgreen', 'mediumpurple', 
-               'peru', 'rosybrown',  'turquoise', 'indianred', 'darkseagreen']
-idx = 0
-
-for group_verts in vertex_list:
-    group_verts = reorder_verts_2D(group_verts)
-    # plt.plot(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))], linewidth=2)
-    plt.fill(group_verts[0, :], group_verts[1, :], colour_list[int(abs((len(colour_list) - 1) - idx % (len(vertex_list) - 1)))])
-    idx += 1
-
-# plot the polytope intersections
-for inter in inters_list:
-
-    inter_vertex = inter.vertices()
- 
-    if inter_vertex.size > 0:
-        group_inters = reorder_verts_2D(inter_vertex)
-        plt.fill(group_inters[0,:], group_inters[1,:], 'lime')
-
-if t_plan != -1:
-    path_len = len(path)
-    idx = 0
-    while idx != path_len - 1:
-        x_vals = [path[idx].coords[0], path[idx+1].coords[0]]
-        y_vals = [path[idx].coords[1], path[idx+1].coords[1]]
-        idx += 1
-        plt.plot(x_vals, y_vals, 'black')
-
+if t_plan == -1: # IRIS + RRT
+    # print the path
+    print('Path')
+    for el in min_path:
+        print(el.coords)
+    fin_path = min_path
+elif t_plan != -1: # IRIS ONLY
     # print the path
     print('Path')
     for el in path:
         print(el.coords)
-
-    # write the path to a csv file
-    with open('IRIS_env_drake/maze1_results.csv', 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        for ele in path:
-            writer.writerow(ele.coords)
+    fin_path = path
 
 else:
     print('IRIS Path not found')
 
-
-# plot the forward and reverse dijkstra's paths
-# need to write code for drawing the Dijkstra paths
-path_fix_cols = ['black', 'blue', 'magenta', 'green', 'orange']
-if t_plan == -1 and failed == False:
-    col_idx = 0
-    # print(f'all full paths: {all_full_paths}')
-    for pa in all_full_paths:
-        if len(pa) > 0:
-            len_pa = len(pa)
-            idx = 0
-            while idx != len_pa - 1:
-                x_vals = [pa[idx].coords[0], pa[idx+1].coords[0]]
-                y_vals = [pa[idx].coords[1], pa[idx+1].coords[1]]
-                # plt.plot(x_vals, y_vals, path_fix_cols[int(abs((len(path_fix_cols) - 1) - idx % (len_pa - 1)))])
-                plt.plot(x_vals, y_vals, path_fix_cols[col_idx % len(path_fix_cols)])
-                idx += 1
-        col_idx += 1
-
-    idx = 0
-    while idx != len(min_path) - 1:
-        x_vals = [min_path[idx].coords[0], min_path[idx+1].coords[0]]
-        y_vals = [min_path[idx].coords[1], min_path[idx+1].coords[1]]
-        plt.plot(x_vals, y_vals, 'yellow')
-        idx += 1
-
-    # write the path to a csv file
-    with open('IRIS_env_drake/maze1_results.csv', 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        for ele in min_path:
-            writer.writerow(ele.coords)
-
-# plot all the nodes (includes the vertices)
-for no in nodes:
-    plt.plot(no.coords[0], no.coords[1], 'bo')
-
-# plot the start and goal nodes
-plt.plot(start[0], start[1], 'mo')
-plt.plot(goal[0], goal[1], 'mo')
+# write the path to a csv file
+with open('IRIS_env_drake/maze2_results.csv', 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    for ele in fin_path:
+        writer.writerow(ele.coords)
 
 
 if t_plan != -1:
@@ -1976,6 +1839,3 @@ elif t_plan == -1 and failed == False:
     print(f'Time taken to generate RRT start/goal pairs: {t_pairs}')
     print(f'Time taken to run RRT: {t_rrt}')
     print(f'Total Time: {t_IRIS + t_forward + t_reverse + t_pairs + t_rrt + time_intersect + time_build + time_points + time_points_neighbours}')
-
-plt.axis('equal')
-plt.show()

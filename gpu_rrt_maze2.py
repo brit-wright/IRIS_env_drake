@@ -13,6 +13,7 @@ from pydrake.all import *
 import bisect
 import time
 import torch
+import csv
 
 
 STEP_SIZE = 0.8
@@ -795,6 +796,12 @@ while (i < len(min_path)-2):
         i = i+1
 
 print(f'path is: {min_path}')
+
+# write the path to a csv file
+with open('IRIS_env_drake/maze2_results.csv', 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    for ele in min_path:
+        writer.writerow(ele.coords)
 
 
 ###################################################################################################################
