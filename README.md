@@ -9,7 +9,7 @@ and simulating a model-based controller for the Go2 quadruped in Mujoco simulati
 
 # Software/Library Requirements
 This repo is entirely Python-based. The following libraries are needed: numpy, matplotlib, shapely, 
-scipy, torch, pydrak, and optionally cProfile (for time-profiling). Since part of this project involves
+scipy, torch, pydrake, and optionally cProfile (for time-profiling). Since part of this project involves
 GPU-parallelization, a CUDA-capable machine is recommended, but if your machine doesn't have a GPU,
 setting device='cpu' will work for testing/debugging, just no actual parallelization.
 
