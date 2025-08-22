@@ -7,5 +7,11 @@ GPU-parallelized RRT planners. Phase 2 involved using convex decomposition throu
 and using it to plan. Finally, [Phase 3](https://github.com/brit-wright/mujoco_stuff) involved building
 and simulating a model-based controller for the Go2 quadruped in Mujoco simulation. 
 
+# Software/Library Requirements
+This repo is entirely Python-based. The following libraries are needed: numpy, matplotlib, shapely, 
+scipy, torch, pydrak, and optionally cProfile (for time-profiling). Since part of this project involves
+GPU-parallelization, a CUDA-capable machine is recommended, but if your machine doesn't have a GPU,
+setting device='cpu' will work for testing/debugging, just no actual parallelization.
+
 # Questions
 Feel free to reach out at bmwright@caltech.edu if you have questions :D
